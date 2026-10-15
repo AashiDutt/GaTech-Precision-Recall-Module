@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Precision and Recall</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <span class="brand">Precision and Recall</span>
+    <span id="progress" class="progress"></span>
+    <button id="leaveBtn" class="link-btn" hidden>Leave for now</button>
+  </header>
+  <main id="app" class="card" tabindex="-1" aria-live="polite"></main>
+
+  <dialog id="leaveDialog">
+    <form method="dialog" id="leaveForm">
+      <h2>Leaving for now?</h2>
+      <p>Your place is saved. Before you go, what made you stop? (optional)</p>
+      <textarea id="leaveReason" rows="3" placeholder="For example: out of time, too easy, confusing slide"></textarea>
+      <div class="row">
+        <button value="cancel" class="secondary">Keep going</button>
+        <button value="leave" class="primary">Save and leave</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="content.js"></script>
+  <script src="store.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
