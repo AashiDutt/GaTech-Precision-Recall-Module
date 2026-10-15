@@ -365,11 +365,13 @@ function renderSlides() {
 
   const nav = el("div", { class: "row" });
   if (idx > 0) {
-    nav.appendChild(el("button", { class: "secondary", text: "Back", onclick: () => {
+    nav.appendChild(el("button", { class: "secondary", text: "← Back", onclick: () => {
       state.slideIndex -= 1; state.slidePhase = "slide"; state.revealed = true; save(); renderSlides();
     } }));
+  } else {
+    nav.appendChild(el("button", { class: "secondary", text: "← Back", disabled: true }));
   }
-  nav.appendChild(el("button", { class: "primary", text: slide.check ? "Check your understanding" : "Next", onclick: () => {
+  nav.appendChild(el("button", { class: "primary", text: (slide.check ? "Check your understanding" : "Next") + " →", onclick: () => {
     if (slide.check) { state.slidePhase = "check"; }
     else { state.slideIndex += 1; state.revealed = false; }
     save(); renderSlides();
