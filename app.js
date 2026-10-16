@@ -253,7 +253,7 @@ function renderSignin() {
       state.resumeScreen = state.screen;
       state.screen = "saved";
       leaveBtn.hidden = false;
-      save();
+      save(); // this initializes auth for the loaded email
       render();
     } else {
       err.textContent = "No account found with this email. Sign up to get started.";

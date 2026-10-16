@@ -8,10 +8,10 @@
 
 const STORE_KEY = "pr-module-v1";
 const AUTH_KEY = "pr-module-auth";
-const EMAIL_INDEX_KEY = "pr-module-emails"; // maps email -> store key
 
 const Store = (() => {
-  let auth = readJSON(AUTH_KEY);
+  let currentEmail = null; // track current learner's email
+  let auth = null;
   let pending = null;      // latest state waiting to be sent
   let timer = null;
   let inFlight = false;
@@ -22,6 +22,19 @@ const Store = (() => {
   }
   function writeJSON(key, value) {
     try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) {}
+  }
+
+  function getStoreKey(email) {
+    return email ? `pr-module-v1-${email}` : STORE_KEY;
+  }
+
+  function getAuthKey(email) {
+    return email ? `pr-module-auth-${email}` : AUTH_KEY;
+  }
+
+  function initAuth(email) {
+    currentEmail = email;
+    auth = readJSON(getAuthKey(email));
   }
 
   function headers(extra = {}) {
@@ -37,7 +50,7 @@ const Store = (() => {
       expires_at: Date.now() + (data.expires_in || 3600) * 1000,
       user_id: data.user && data.user.id,
     };
-    writeJSON(AUTH_KEY, auth);
+    writeJSON(getAuthKey(currentEmail), auth);
   }
 
   // Anonymous sign-in. Called once, when the learner ticks the consent box.
@@ -112,40 +125,32 @@ const Store = (() => {
     timer = setTimeout(push, ms);
   }
 
-  function updateEmailIndex(email) {
-    const index = readJSON(EMAIL_INDEX_KEY) || {};
-    if (email) index[email] = STORE_KEY;
-    writeJSON(EMAIL_INDEX_KEY, index);
-  }
 
   return {
     status,
-    load() { return readJSON(STORE_KEY); },
+    load() { return readJSON(getStoreKey(currentEmail)); },
     loadByEmail(email) {
-      const index = readJSON(EMAIL_INDEX_KEY) || {};
-      const key = index[email];
-      if (key) {
-        try {
-          const raw = localStorage.getItem(key);
-          return raw ? JSON.parse(raw) : null;
-        } catch (e) {
-          return null;
-        }
+      const storeKey = getStoreKey(email);
+      try {
+        const raw = localStorage.getItem(storeKey);
+        return raw ? JSON.parse(raw) : null;
+      } catch (e) {
+        return null;
       }
-      return null;
     },
     save(state) {
-      writeJSON(STORE_KEY, state);
-      if (state.email) updateEmailIndex(state.email);
+      if (state.email) initAuth(state.email);
+      writeJSON(getStoreKey(state.email), state);
       pending = state;
       schedule(auth ? 800 : 50); // first save: sign in straight away
     },
     clear() {
       try {
-        localStorage.removeItem(STORE_KEY);
-        localStorage.removeItem(AUTH_KEY);
+        localStorage.removeItem(getStoreKey(currentEmail));
+        localStorage.removeItem(getAuthKey(currentEmail));
       } catch (e) {}
       auth = null;
+      currentEmail = null;
       pending = null;
     },
     flush: push,
