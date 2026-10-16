@@ -8,6 +8,7 @@
 
 const STORE_KEY = "pr-module-v1";
 const AUTH_KEY = "pr-module-auth";
+const EMAIL_INDEX_KEY = "pr-module-emails"; // maps email -> store key
 
 const Store = (() => {
   let auth = readJSON(AUTH_KEY);
@@ -111,16 +112,39 @@ const Store = (() => {
     timer = setTimeout(push, ms);
   }
 
+  function updateEmailIndex(email) {
+    const index = readJSON(EMAIL_INDEX_KEY) || {};
+    if (email) index[email] = STORE_KEY;
+    writeJSON(EMAIL_INDEX_KEY, index);
+  }
+
   return {
     status,
     load() { return readJSON(STORE_KEY); },
+    loadByEmail(email) {
+      const index = readJSON(EMAIL_INDEX_KEY) || {};
+      const key = index[email];
+      if (key) {
+        try {
+          const raw = localStorage.getItem(key);
+          return raw ? JSON.parse(raw) : null;
+        } catch (e) {
+          return null;
+        }
+      }
+      return null;
+    },
     save(state) {
       writeJSON(STORE_KEY, state);
+      if (state.email) updateEmailIndex(state.email);
       pending = state;
       schedule(auth ? 800 : 50); // first save: sign in straight away
     },
     clear() {
-      try { localStorage.removeItem(STORE_KEY); localStorage.removeItem(AUTH_KEY); } catch (e) {}
+      try {
+        localStorage.removeItem(STORE_KEY);
+        localStorage.removeItem(AUTH_KEY);
+      } catch (e) {}
       auth = null;
       pending = null;
     },
