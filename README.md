@@ -10,9 +10,13 @@ A short self-paced module on the confusion matrix, precision, recall and the acc
 - Leave and return: progress is saved, and the exit question records why the learner left.
 - Time spent on each segment is recorded.
 - Results string export as a backup.
+- Slide navigation with back/forward arrows and keyboard support (arrow keys).
+- Supabase integration for persistent data storage.
+
+## Data storage
+Each save goes to the browser first, then to the Supabase `sessions` table (one row per learner, anonymous sign-in at consent, row level security). Setup: run `setup.sql` in the Supabase SQL Editor and turn on anonymous sign-ins.
 
 ## Not yet built
-- Database (week of Oct 26). Progress is in browser storage for now. Swap `store.js` for Supabase or Firebase.
 - Visuals (week of Nov 2). Dashed boxes mark where each visual goes.
 - Summative quiz, completion summary, retention quiz, email reminder, certificate (week of Nov 9).
 
@@ -20,7 +24,9 @@ A short self-paced module on the confusion matrix, precision, recall and the acc
 - `index.html` page shell
 - `content.js` items and slides (edit content here)
 - `app.js` screens and flow
-- `store.js` storage layer
+- `store.js` storage layer (browser plus Supabase)
+- `config.js` Supabase URL and publishable key
+- `setup.sql` table and security rules
 - `styles.css` styles
 
 ## Run locally
