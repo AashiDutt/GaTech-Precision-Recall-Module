@@ -115,3 +115,5 @@ dialog h2 { margin-top: 0; font-size: 20px; }
 .slide-nav .arrow { margin-top: 0; }
 .slide-count { color: var(--muted); font-size: 14px; }
 .fresh-row { margin-top: 18px; }
+.auth-buttons { display: flex; flex-direction: column; gap: 12px; margin-top: 24px; }
+.auth-buttons button { width: 100%; margin-top: 0; }

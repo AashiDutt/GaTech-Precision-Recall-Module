@@ -19,7 +19,7 @@ function newState() {
   return {
     version: 1,
     createdAt: new Date().toISOString(),
-    screen: "register",
+    screen: "landing",
     email: null,
     arm: null,
     consentAt: null,
@@ -205,6 +205,63 @@ function feedbackView(itemId, chosen, correct) {
 }
 
 // ---------- screens ----------
+
+function renderLanding() {
+  setProgress("");
+  leaveBtn.hidden = true;
+  const signup = el("button", { class: "primary", text: "Sign up as a new user" });
+  const signin = el("button", { class: "secondary", text: "Sign in to continue" });
+  signup.addEventListener("click", () => go("register"));
+  signin.addEventListener("click", () => go("signin"));
+  app.replaceChildren(
+    el("h1", { text: "Learn to evaluate a classifier" }),
+    el("p", { text: "A short module on the confusion matrix, precision, recall and why accuracy can mislead." }),
+    el("div", { class: "auth-buttons" }, [
+      signup,
+      signin,
+    ]),
+  );
+}
+
+function renderSignin() {
+  setProgress("");
+  leaveBtn.hidden = true;
+  const input = el("input", { type: "email", id: "signin-email", required: true, autocomplete: "email", placeholder: "you@example.com" });
+  const err = el("p", { class: "error", role: "alert" });
+  const btn = el("button", { type: "submit", class: "primary", text: "Continue" });
+  const back = el("button", { class: "link-btn", text: "← Back" });
+  back.addEventListener("click", () => go("landing"));
+  const form = el("form", { novalidate: true }, [
+    el("h1", { text: "Sign in" }),
+    el("p", { text: "Enter your email to resume your progress." }),
+    el("label", { for: "signin-email", text: "Email address" }),
+    input,
+    err,
+    el("div", { class: "row" }, [back, btn]),
+  ]);
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const v = input.value.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) {
+      err.textContent = "Please enter a valid email address.";
+      return;
+    }
+    const saved = Store.loadByEmail(v);
+    if (saved) {
+      state = saved;
+      state.resumes += 1;
+      state.resumeScreen = state.screen;
+      state.screen = "saved";
+      leaveBtn.hidden = false;
+      save();
+      render();
+    } else {
+      err.textContent = "No account found with this email. Sign up to get started.";
+    }
+  });
+  app.replaceChildren(form);
+  input.focus();
+}
 
 // One screen: what the module is, the data notice, email and consent together,
 // so the learner sees the notice before typing anything.
@@ -534,8 +591,10 @@ window.addEventListener("pagehide", () => { endSegment(); Store.beacon(); });
 // ---------- router ----------
 
 const SCREENS = {
+  landing: renderLanding,
   register: renderRegister,
   notice: renderRegister,
+  signin: renderSignin,
   diagIntro: renderDiagIntro,
   diagnostic: renderDiagnostic,
   report: renderReport,
@@ -550,12 +609,5 @@ function render() {
   window.scrollTo(0, 0);
 }
 
-// Reopening mid-session: show the welcome back screen so a different person
-// on the same computer can start fresh instead of landing in someone else's place.
-if (state.consentAt && !["saved", "end"].includes(state.screen)) {
-  state.resumeScreen = state.screen;
-  state.screen = "saved";
-  save();
-}
 if (!state.consentAt) Store.clear();
 render();
