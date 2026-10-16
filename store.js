@@ -21,7 +21,13 @@ const Store = (() => {
     try { const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : null; } catch (e) { return null; }
   }
   function writeJSON(key, value) {
-    try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) {}
+    try {
+      const json = JSON.stringify(value);
+      localStorage.setItem(key, json);
+    } catch (e) {
+      console.error("[store] Failed to write to localStorage:", e.message);
+      console.error("[store] Key:", key, "Error:", e);
+    }
   }
 
   function normalizeEmail(email) {
