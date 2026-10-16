@@ -145,8 +145,11 @@ const Store = (() => {
       }
     },
     save(state) {
+      const key = getStoreKey(state.email);
+      console.log("[store] Saving state for email:", state.email, "key:", key);
       if (state.email) initAuth(state.email);
-      writeJSON(getStoreKey(state.email), state);
+      writeJSON(key, state);
+      console.log("[store] State saved. Checking localStorage:", localStorage.getItem(key) ? "✓ found" : "✗ not found");
       pending = state;
       schedule(auth ? 800 : 50); // first save: sign in straight away
     },

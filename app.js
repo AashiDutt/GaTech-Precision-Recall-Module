@@ -304,6 +304,7 @@ function renderRegister() {
     state.email = input.value.toLowerCase().trim();
     state.consentAt = new Date().toISOString();
     state.arm = Math.random() < 0.5 ? "A" : "B"; // random assignment at registration
+    console.log("[signup] User signed up with email:", state.email);
     leaveBtn.hidden = false;
     go("diagIntro");
   });
