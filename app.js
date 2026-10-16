@@ -241,7 +241,7 @@ function renderSignin() {
   ]);
   form.addEventListener("submit", (e) => {
     e.preventDefault();
-    const v = input.value.trim();
+    const v = input.value.toLowerCase().trim();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) {
       err.textContent = "Please enter a valid email address.";
       return;
@@ -256,6 +256,7 @@ function renderSignin() {
       save(); // this initializes auth for the loaded email
       render();
     } else {
+      console.warn("[signin] No account found for:", v);
       err.textContent = "No account found with this email. Sign up to get started.";
     }
   });
@@ -300,7 +301,7 @@ function renderRegister() {
     e.preventDefault();
     if (!valid()) { err.textContent = "Please enter a valid email address."; input.focus(); return; }
     if (!box.checked) return;
-    state.email = input.value.trim();
+    state.email = input.value.toLowerCase().trim();
     state.consentAt = new Date().toISOString();
     state.arm = Math.random() < 0.5 ? "A" : "B"; // random assignment at registration
     leaveBtn.hidden = false;

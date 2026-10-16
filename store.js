@@ -24,17 +24,23 @@ const Store = (() => {
     try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) {}
   }
 
+  function normalizeEmail(email) {
+    return email ? email.toLowerCase().trim() : email;
+  }
+
   function getStoreKey(email) {
-    return email ? `pr-module-v1-${email}` : STORE_KEY;
+    const normalized = normalizeEmail(email);
+    return normalized ? `pr-module-v1-${normalized}` : STORE_KEY;
   }
 
   function getAuthKey(email) {
-    return email ? `pr-module-auth-${email}` : AUTH_KEY;
+    const normalized = normalizeEmail(email);
+    return normalized ? `pr-module-auth-${normalized}` : AUTH_KEY;
   }
 
   function initAuth(email) {
-    currentEmail = email;
-    auth = readJSON(getAuthKey(email));
+    currentEmail = normalizeEmail(email);
+    auth = readJSON(getAuthKey(currentEmail));
   }
 
   function headers(extra = {}) {
