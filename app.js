@@ -276,6 +276,8 @@ function renderRegister() {
   const update = () => { btn.disabled = !box.checked; err.textContent = ""; };
   input.addEventListener("input", update);
   box.addEventListener("change", update);
+  const back = el("button", { class: "link-btn", text: "← Back" });
+  back.addEventListener("click", () => go("landing"));
   const form = el("form", { novalidate: true }, [
     el("h1", { text: "Learn to evaluate a classifier" }),
     el("p", { text: "A short module on the confusion matrix, precision, recall and why accuracy can mislead. It takes 30 to 45 minutes, and you can leave and come back at any time. A short retention quiz follows five to six days later by email." }),
@@ -292,7 +294,7 @@ function renderRegister() {
     el("label", { class: "option consent", for: "consent" }, [box, el("span", { text: "I have read this notice and agree to take part." })]),
     el("p", { class: "muted", text: "Nothing is stored until you tick the box." }),
     err,
-    btn,
+    el("div", { class: "row" }, [back, btn]),
   ]);
   form.addEventListener("submit", (e) => {
     e.preventDefault();
