@@ -613,5 +613,6 @@ function render() {
   window.scrollTo(0, 0);
 }
 
-if (!state.consentAt) Store.clear();
+// Don't clear on reload - only clear if user explicitly asks to
+// if (!state.consentAt) Store.clear();
 render();
