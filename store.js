@@ -117,7 +117,7 @@ const Store = (() => {
     save(state) {
       writeJSON(STORE_KEY, state);
       pending = state;
-      schedule();
+      schedule(auth ? 800 : 50); // first save: sign in straight away
     },
     clear() {
       try { localStorage.removeItem(STORE_KEY); localStorage.removeItem(AUTH_KEY); } catch (e) {}
