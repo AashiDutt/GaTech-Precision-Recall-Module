@@ -206,46 +206,23 @@ function feedbackView(itemId, chosen, correct) {
 
 // ---------- screens ----------
 
+// One screen: what the module is, the data notice, email and consent together,
+// so the learner sees the notice before typing anything.
 function renderRegister() {
   setProgress("");
   leaveBtn.hidden = true;
   const input = el("input", { type: "email", id: "email", required: true, autocomplete: "email", placeholder: "you@example.com" });
+  const box = el("input", { type: "checkbox", id: "consent" });
   const err = el("p", { class: "error", role: "alert" });
+  const btn = el("button", { type: "submit", class: "primary", text: "Agree and start", disabled: true });
+  const valid = () => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.value.trim());
+  const update = () => { btn.disabled = !box.checked; err.textContent = ""; };
+  input.addEventListener("input", update);
+  box.addEventListener("change", update);
   const form = el("form", { novalidate: true }, [
     el("h1", { text: "Learn to evaluate a classifier" }),
-    el("p", { text: "A short module on the confusion matrix, precision, recall and why accuracy can mislead. It takes 30 to 45 minutes, and you can leave and come back at any time." }),
-    el("p", { text: "A short retention quiz follows five to six days later by email." }),
-    el("label", { for: "email", text: "Email address" }),
-    input, err,
-    el("button", { type: "submit", class: "primary", text: "Continue" }),
-  ]);
-  form.addEventListener("submit", (e) => {
-    e.preventDefault();
-    const v = input.value.trim();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) {
-      err.textContent = "Please enter a valid email address.";
-      return;
-    }
-    state.email = v;
-    go("notice");
-  });
-  app.replaceChildren(form);
-  input.focus();
-}
-
-function renderNotice() {
-  setProgress("");
-  const box = el("input", { type: "checkbox", id: "consent" });
-  const btn = el("button", { class: "primary", text: "Agree and start", disabled: true });
-  box.addEventListener("change", () => { btn.disabled = !box.checked; });
-  btn.addEventListener("click", () => {
-    state.consentAt = new Date().toISOString();
-    state.arm = Math.random() < 0.5 ? "A" : "B"; // random assignment at registration
-    leaveBtn.hidden = false;
-    go("diagIntro");
-  });
-  app.replaceChildren(
-    el("h1", { text: "Before you start: your data" }),
+    el("p", { text: "A short module on the confusion matrix, precision, recall and why accuracy can mislead. It takes 30 to 45 minutes, and you can leave and come back at any time. A short retention quiz follows five to six days later by email." }),
+    el("h2", { class: "notice-title", text: "Your data" }),
     el("ul", { class: "notice" }, [
       el("li", { text: "What is stored: your email address and your answers in this module." }),
       el("li", { text: "Why: to save your progress, and to study whether the module helps people learn." }),
@@ -253,10 +230,25 @@ function renderNotice() {
       el("li", { text: "All data is deleted after thirty days of inactivity." }),
       el("li", { text: "Taking part is voluntary, and you can stop at any time." }),
     ]),
+    el("label", { for: "email", text: "Email address" }),
+    input,
     el("label", { class: "option consent", for: "consent" }, [box, el("span", { text: "I have read this notice and agree to take part." })]),
     el("p", { class: "muted", text: "Nothing is stored until you tick the box." }),
+    err,
     btn,
-  );
+  ]);
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    if (!valid()) { err.textContent = "Please enter a valid email address."; input.focus(); return; }
+    if (!box.checked) return;
+    state.email = input.value.trim();
+    state.consentAt = new Date().toISOString();
+    state.arm = Math.random() < 0.5 ? "A" : "B"; // random assignment at registration
+    leaveBtn.hidden = false;
+    go("diagIntro");
+  });
+  app.replaceChildren(form);
+  input.focus();
 }
 
 function renderDiagIntro() {
@@ -321,7 +313,59 @@ function renderReport() {
   );
 }
 
+// ---------- slide navigation ----------
+// maxSlide: furthest slide whose content the learner has seen.
+// checksDone: slides whose check has been answered, so revisiting never repeats a check.
+
+function navInit() {
+  if (state.maxSlide == null) state.maxSlide = -1;
+  if (!state.checksDone) state.checksDone = [];
+}
+
+function goSlide(i) {
+  navInit();
+  state.slideIndex = Math.max(0, i);
+  state.slidePhase = "slide";
+  state.revealed = state.slideIndex <= state.maxSlide;
+  save();
+  renderSlides();
+}
+
+function slideBack() {
+  if (state.slideIndex > 0) goSlide(state.slideIndex - 1);
+}
+
+function slideForward() {
+  navInit();
+  const idx = state.slideIndex;
+  const slide = SLIDES[idx];
+  if (slide.predict && !state.revealed) return; // must predict first on a first visit
+  if (slide.check && !state.checksDone.includes(idx)) {
+    state.slidePhase = "check";
+    save();
+    renderSlides();
+    return;
+  }
+  goSlide(idx + 1);
+}
+
+function slideNav({ canForward, forwardLabel }) {
+  const idx = state.slideIndex;
+  const nav = el("div", { class: "slide-nav" });
+  nav.appendChild(el("button", {
+    class: "arrow secondary", text: "← Back", "aria-label": "Previous slide",
+    disabled: idx === 0, onclick: slideBack,
+  }));
+  nav.appendChild(el("span", { class: "slide-count", text: (idx + 1) + " / " + SLIDES.length }));
+  nav.appendChild(el("button", {
+    class: "arrow primary", text: forwardLabel + " →", "aria-label": forwardLabel,
+    disabled: !canForward, onclick: slideForward,
+  }));
+  return nav;
+}
+
 function renderSlides() {
+  navInit();
   const idx = state.slideIndex;
   if (idx >= SLIDES.length) return go("end");
   const slide = SLIDES[idx];
@@ -333,7 +377,7 @@ function renderSlides() {
   startSegment("slide-" + (idx + 1));
   const parts = [el("h1", { text: slide.title })];
 
-  // Predict first: the learner commits before the text appears.
+  // Predict first: on a first visit the learner commits before the text appears.
   if (slide.predict && !state.revealed) {
     const choices = el("div", { class: "options" });
     slide.predict.choices.forEach((c) => {
@@ -352,9 +396,12 @@ function renderSlides() {
       el("p", { text: slide.predict.prompt }),
       choices,
     ]));
+    parts.push(slideNav({ canForward: false, forwardLabel: "Next" }));
     app.replaceChildren(...parts);
     return;
   }
+
+  if (idx > state.maxSlide) { state.maxSlide = idx; save(); }
 
   if (slide.predict) {
     const p = [...state.predictions].reverse().find((x) => x.slide === idx + 1);
@@ -363,20 +410,12 @@ function renderSlides() {
   parts.push(visualView(slide.visual));
   slide.text.forEach((t) => parts.push(el("p", { class: "slide-text", text: t })));
 
-  const nav = el("div", { class: "row" });
-  if (idx > 0) {
-    nav.appendChild(el("button", { class: "secondary", text: "← Back", onclick: () => {
-      state.slideIndex -= 1; state.slidePhase = "slide"; state.revealed = true; save(); renderSlides();
-    } }));
-  } else {
-    nav.appendChild(el("button", { class: "secondary", text: "← Back", disabled: true }));
-  }
-  nav.appendChild(el("button", { class: "primary", text: (slide.check ? "Check your understanding" : "Next") + " →", onclick: () => {
-    if (slide.check) { state.slidePhase = "check"; }
-    else { state.slideIndex += 1; state.revealed = false; }
-    save(); renderSlides();
-  } }));
-  parts.push(nav);
+  const pendingCheck = slide.check && !state.checksDone.includes(idx);
+  const last = idx === SLIDES.length - 1;
+  parts.push(slideNav({
+    canForward: true,
+    forwardLabel: pendingCheck ? "Check your understanding" : (last ? "Finish" : "Next"),
+  }));
   app.replaceChildren(...parts);
 }
 
@@ -384,6 +423,7 @@ function renderCheck(itemId) {
   const checkNo = SLIDES.slice(0, state.slideIndex + 1).filter((s) => s.check).length;
   setProgress("Check " + checkNo + " of 5");
   startSegment("check-" + checkNo);
+  const back = el("button", { class: "secondary", text: "← Back to slide", onclick: () => goSlide(state.slideIndex) });
   app.replaceChildren(
     el("h1", { text: "Check " + checkNo }),
     itemForm(itemId, {
@@ -391,24 +431,20 @@ function renderCheck(itemId) {
         const correct = scoreItem(itemId, chosen);
         recordResponse("check", itemId, chosen, correct);
         state.lastCheck = { itemId, chosen, correct };
+        if (!state.checksDone.includes(state.slideIndex)) state.checksDone.push(state.slideIndex);
         state.slidePhase = "checkFeedback";
         save();
         renderSlides();
       },
     }),
+    back,
   );
 }
 
 function renderCheckFeedback(itemId) {
   const last = state.lastCheck || { itemId, chosen: [], correct: false };
-  const btn = el("button", { class: "primary", text: "Continue" });
-  btn.addEventListener("click", () => {
-    state.slideIndex += 1;
-    state.slidePhase = "slide";
-    state.revealed = false;
-    save();
-    renderSlides();
-  });
+  const btn = el("button", { class: "primary", text: "Continue →" });
+  btn.addEventListener("click", () => goSlide(state.slideIndex + 1));
   app.replaceChildren(
     el("h1", { text: "Feedback" }),
     el("p", { class: "stem", text: ITEMS[itemId].stem }),
@@ -416,6 +452,16 @@ function renderCheckFeedback(itemId) {
     btn,
   );
 }
+
+// Keyboard: left and right arrow keys move between slides.
+document.addEventListener("keydown", (e) => {
+  if (state.screen !== "slides" || state.slidePhase !== "slide") return;
+  if (leaveDialog.open) return;
+  const tag = (e.target.tagName || "").toLowerCase();
+  if (tag === "input" || tag === "textarea") return;
+  if (e.key === "ArrowLeft") { e.preventDefault(); slideBack(); }
+  if (e.key === "ArrowRight") { e.preventDefault(); slideForward(); }
+});
 
 function resultsString() {
   return btoa(unescape(encodeURIComponent(JSON.stringify(state))));
@@ -475,13 +521,13 @@ leaveDialog.addEventListener("close", () => {
   go("saved");
 });
 
-window.addEventListener("pagehide", endSegment);
+window.addEventListener("pagehide", () => { endSegment(); Store.beacon(); });
 
 // ---------- router ----------
 
 const SCREENS = {
   register: renderRegister,
-  notice: renderNotice,
+  notice: renderRegister,
   diagIntro: renderDiagIntro,
   diagnostic: renderDiagnostic,
   report: renderReport,
