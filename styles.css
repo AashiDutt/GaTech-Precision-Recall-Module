@@ -110,3 +110,8 @@ dialog h2 { margin-top: 0; font-size: 20px; }
 }
 .progress { white-space: nowrap; }
 @media (max-width: 600px) { .brand { display: none; } }
+.notice-title { font-size: 18px; margin: 20px 0 8px; }
+.slide-nav { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 20px; }
+.slide-nav .arrow { margin-top: 0; }
+.slide-count { color: var(--muted); font-size: 14px; }
+.fresh-row { margin-top: 18px; }

@@ -485,6 +485,7 @@ function renderEnd() {
   );
 }
 
+// Shown after "Leave for now", and whenever someone reopens the page mid-session.
 function renderSaved() {
   setProgress("");
   leaveBtn.hidden = true;
@@ -494,10 +495,17 @@ function renderSaved() {
     leaveBtn.hidden = false;
     go(state.resumeScreen || "slides");
   });
+  const fresh = el("button", { class: "link-btn", text: "Not you? Start as a new learner" });
+  fresh.addEventListener("click", () => {
+    Store.clear();
+    state = newState();
+    render();
+  });
   app.replaceChildren(
-    el("h1", { text: "Your place is saved" }),
-    el("p", { text: "Come back to this page any time to pick up where you stopped." }),
+    el("h1", { text: "Welcome back" }),
+    el("p", { text: "Your place is saved for " + (state.email || "this browser") + "." }),
     btn,
+    el("p", { class: "muted fresh-row" }, [fresh]),
   );
 }
 
@@ -542,9 +550,11 @@ function render() {
   window.scrollTo(0, 0);
 }
 
-if (state.consentAt && state.screen !== "saved") {
-  leaveBtn.hidden = false;
-  state.resumes += 1;
+// Reopening mid-session: show the welcome back screen so a different person
+// on the same computer can start fresh instead of landing in someone else's place.
+if (state.consentAt && !["saved", "end"].includes(state.screen)) {
+  state.resumeScreen = state.screen;
+  state.screen = "saved";
   save();
 }
 if (!state.consentAt) Store.clear();
