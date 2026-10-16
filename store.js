@@ -140,13 +140,23 @@ const Store = (() => {
 
   return {
     status,
-    load() { return readJSON(getStoreKey(currentEmail)); },
+    load() {
+      const storeKey = getStoreKey(currentEmail);
+      console.log("[store] load() called with currentEmail:", currentEmail, "key:", storeKey);
+      return readJSON(storeKey);
+    },
     loadByEmail(email) {
       const storeKey = getStoreKey(email);
+      console.log("[store] Looking for email:", email, "key:", storeKey);
       try {
         const raw = localStorage.getItem(storeKey);
+        console.log("[store] localStorage.getItem returned:", raw ? "✓ data found" : "✗ no data");
+        if (raw) {
+          console.log("[store] All localStorage keys:", Object.keys(localStorage));
+        }
         return raw ? JSON.parse(raw) : null;
       } catch (e) {
+        console.error("[store] Error loading by email:", e);
         return null;
       }
     },
