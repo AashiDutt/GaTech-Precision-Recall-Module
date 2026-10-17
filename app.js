@@ -7,11 +7,12 @@ const leaveBtn = document.getElementById("leaveBtn");
 const leaveDialog = document.getElementById("leaveDialog");
 
 if (new URLSearchParams(location.search).has("reset")) {
-  Store.clear();
+  Store.resetAll();
   history.replaceState(null, "", location.pathname);
 }
 
-let state = Store.load() || newState();
+// A refresh keeps the current learner in place. A new tab starts at the landing page.
+let state = Store.load(Store.active()) || newState();
 let segmentStart = null;
 let segmentKey = null;
 
@@ -246,17 +247,16 @@ function renderSignin() {
       err.textContent = "Please enter a valid email address.";
       return;
     }
-    const saved = Store.loadByEmail(v);
+    const saved = Store.load(v);
     if (saved) {
       state = saved;
-      state.resumes += 1;
-      state.resumeScreen = state.screen;
+      // If they left with "Leave for now", resumeScreen already holds their place.
+      if (state.screen !== "saved") state.resumeScreen = state.screen;
       state.screen = "saved";
       leaveBtn.hidden = false;
-      save(); // this initializes auth for the loaded email
+      save();
       render();
     } else {
-      console.warn("[signin] No account found for:", v);
       err.textContent = "No account found with this email. Sign up to get started.";
     }
   });
@@ -301,10 +301,16 @@ function renderRegister() {
     e.preventDefault();
     if (!valid()) { err.textContent = "Please enter a valid email address."; input.focus(); return; }
     if (!box.checked) return;
-    state.email = input.value.toLowerCase().trim();
+    const email = Store.norm(input.value);
+    // Signing up again would wipe progress and re-draw the arm, so send them to sign in.
+    if (Store.exists(email)) {
+      err.textContent = "This email already has saved progress. Go back and choose Sign in.";
+      return;
+    }
+    state = newState();
+    state.email = email;
     state.consentAt = new Date().toISOString();
     state.arm = Math.random() < 0.5 ? "A" : "B"; // random assignment at registration
-    console.log("[signup] User signed up with email:", state.email);
     leaveBtn.hidden = false;
     go("diagIntro");
   });
@@ -557,8 +563,10 @@ function renderSaved() {
     go(state.resumeScreen || "slides");
   });
   const fresh = el("button", { class: "link-btn", text: "Not you? Start as a new learner" });
+  // Hands the tab to someone else. This learner's progress stays saved for sign-in.
   fresh.addEventListener("click", () => {
-    Store.clear();
+    endSegment();
+    Store.forget();
     state = newState();
     render();
   });
@@ -608,11 +616,10 @@ const SCREENS = {
 };
 
 function render() {
+  leaveBtn.hidden = !state.consentAt; // screens before consent and "saved" hide it again
   (SCREENS[state.screen] || renderRegister)();
   app.focus({ preventScroll: true });
   window.scrollTo(0, 0);
 }
 
-// Don't clear on reload - only clear if user explicitly asks to
-// if (!state.consentAt) Store.clear();
 render();
