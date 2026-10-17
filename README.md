@@ -3,7 +3,9 @@
 A short self-paced module on the confusion matrix, precision, recall and the accuracy trap.
 
 ## What works in this build (app shell)
-- Registration with email, data notice and consent box. Nothing is saved before consent.
+- Sign up (email, data notice, consent) and sign in by email. Nothing is saved before consent.
+- Each email has its own saved progress and its own Supabase login, so people sharing a browser never mix data. An email that is already saved must sign in, not sign up again.
+- A refresh keeps the learner in place. A new tab starts at the landing page.
 - Random assignment to Arm A (explanatory feedback) or Arm B (correct answer only), stored with every response.
 - Diagnostic (4 items, one per objective) and a calibration report.
 - 15 slides with predict-first prompts and 5 checks with arm-based feedback.
@@ -14,7 +16,7 @@ A short self-paced module on the confusion matrix, precision, recall and the acc
 - Supabase integration for persistent data storage.
 
 ## Data storage
-Each save goes to the browser first, then to the Supabase `sessions` table (one row per learner, anonymous sign-in at consent, row level security). Setup: run `setup.sql` in the Supabase SQL Editor and turn on anonymous sign-ins.
+Each save goes to the browser first, then to the Supabase `sessions` table (one row per learner, anonymous sign-in at consent, row level security). Sign in only works on the browser where the learner signed up. Sign in from another device needs email codes (planned). Setup: run `setup.sql` in the Supabase SQL Editor and turn on anonymous sign-ins.
 
 ## Not yet built
 - Visuals (week of Nov 2). Dashed boxes mark where each visual goes.
@@ -30,7 +32,7 @@ Each save goes to the browser first, then to the Supabase `sessions` table (one 
 - `styles.css` styles
 
 ## Run locally
-`python3 -m http.server` in this folder, then open http://localhost:8000. Add `?reset` to the URL to start over.
+`python3 -m http.server` in this folder, then open http://localhost:8000. Add `?reset` to the URL to remove every learner saved in that browser (testing only).
 
 ## Deploy to GitHub Pages
 1. Push these files to the root of a GitHub repo.
