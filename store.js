@@ -159,6 +159,17 @@ const Store = (() => {
       pending.clear();
     },
     flush: push,
+    // Calls a database function as an anonymous visitor (used by the retention quiz,
+    // which works from any device without signing in).
+    async rpc(name, args) {
+      const res = await fetch(SUPABASE_URL + "/rest/v1/rpc/" + name, {
+        method: "POST",
+        headers: { apikey: SUPABASE_KEY, "Content-Type": "application/json" },
+        body: JSON.stringify(args),
+      });
+      if (!res.ok) throw new Error(name + " failed: " + res.status);
+      return res.json();
+    },
     // Last chance to send when the tab closes. app.js calls this on pagehide.
     beacon() {
       for (const [email, state] of pending) {

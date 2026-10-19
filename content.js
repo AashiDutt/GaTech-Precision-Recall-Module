@@ -182,23 +182,218 @@ const ITEMS = {
         explain: "The scenario makes a wasted interview the expensive error. Counting all errors together hides that." },
     ],
   },
+  // ---------- Added in Milestone 2 ----------
+  // Diagnostic (second item per objective)
+  13: {
+    obj: "O1", type: "single",
+    stem: "An email filter lets a phishing email into your inbox and labels it \"safe\". Treat \"phishing\" as the positive class. What kind of outcome is this?",
+    options: [
+      { key: "A", text: "False negative", correct: true,
+        explain: "The filter said \"safe\" (negative) and was wrong, so it missed a real phishing email." },
+      { key: "B", text: "False positive", tag: "M3",
+        explain: "A false positive would be a safe email wrongly marked as phishing. Here a real threat got through, which is a different mistake: a miss, not a false alarm." },
+      { key: "C", text: "True negative", tag: "Other",
+        explain: "The prediction was negative, but \"true\" would mean it was right. The email was phishing, so it was wrong." },
+      { key: "D", text: "True positive", tag: "Other",
+        explain: "A true positive needs the filter to say \"phishing\" and be right. It said \"safe\"." },
+    ],
+  },
+  14: {
+    obj: "O2", type: "single",
+    matrix: { values: { tp: 30, fn: 10, fp: 20, tn: 940 } },
+    stem: "Using this confusion matrix, what share of the real fraud cases did the model catch?",
+    options: [
+      { key: "A", text: "0.75", correct: true,
+        explain: "That is recall: TP / (TP + FN) = 30 / 40." },
+      { key: "B", text: "0.60", tag: "M1",
+        explain: "This is precision, TP / (TP + FP) = 30 / 50. It tells you how many flags were right, not how much real fraud was caught." },
+      { key: "C", text: "0.97", tag: "M2",
+        explain: "This is accuracy, (30 + 940) / 1,000. It is high mostly because of the 940 easy \"not fraud\" cases." },
+      { key: "D", text: "0.25", tag: "Other",
+        explain: "This is 10 / 40, the share of fraud the model missed. The question asks for the share it caught." },
+    ],
+  },
+  15: {
+    obj: "O3", type: "single",
+    stem: "A music app picks songs for a short \"Top picks for you\" list. Treat \"a song the user likes\" as the positive class. Users quickly stop trusting the list if it has songs they dislike, but leaving out some songs they would like is fine. Which metric matters more here?",
+    options: [
+      { key: "A", text: "Precision", correct: true,
+        explain: "The costly error is a bad song in the list, a false positive. Precision drops when false positives rise." },
+      { key: "B", text: "Recall", tag: "M1",
+        explain: "Recall tracks liked songs that were left out, which the scenario says is fine." },
+      { key: "C", text: "Accuracy", tag: "M2",
+        explain: "Most songs in the catalog are ones the user would not pick, so a model that recommends nothing would still score high accuracy." },
+      { key: "D", text: "Neither, only the total number of errors matters", tag: "M3",
+        explain: "The scenario makes bad picks the expensive error. Counting all errors together hides that." },
+    ],
+  },
+  16: {
+    obj: "O4", type: "tf",
+    stem: "True or false: a disease test that is 99% accurate must catch most people who have the disease, even when only 1 in 100 people has it.",
+    options: [
+      { key: "T", text: "True", tag: "M2",
+        explain: "A test that says \"healthy\" to everyone is also 99% accurate here, and it catches no one. Accuracy alone cannot tell you how many sick people were found." },
+      { key: "F", text: "False", correct: true,
+        explain: "When only 1 in 100 people is sick, calling everyone healthy already scores 99%. You need recall to know how many sick people the test catches." },
+    ],
+  },
+
+  // Summative (end of module), objective 4
+  17: {
+    obj: "O4", type: "single",
+    matrix: { values: { tp: 5, fn: 15, fp: 0, tn: 1980 }, positive: "defective" },
+    stem: "A factory model checks 2,000 parts, and 20 of them are defective. Its accuracy is 99.25%. What is the best reading of this result?",
+    options: [
+      { key: "A", text: "Accuracy looks excellent, but the model misses 15 of the 20 defective parts (recall 0.25)", correct: true,
+        explain: "Almost every part is fine, so accuracy stays high even though the model catches only 5 of 20 defects." },
+      { key: "B", text: "It is an excellent model because its accuracy is above 99%", tag: "M2",
+        explain: "The 99.25% comes mostly from the 1,980 good parts. It hides the 15 defects that were missed." },
+      { key: "C", text: "Its recall is 99.25%", tag: "M1",
+        explain: "99.25% is accuracy. Recall is the share of defects caught: 5 / 20 = 0.25." },
+      { key: "D", text: "Its precision is low, because it missed 15 defects", tag: "M1",
+        explain: "Missed defects lower recall, not precision. All 5 parts it flagged were defective, so its precision is 1.0." },
+    ],
+  },
+
+  // Retention quiz (five to six days later). New questions on the same ideas.
+  18: {
+    obj: "O1", type: "single",
+    stem: "A smartwatch warns that your heart rhythm is irregular, but a doctor's test shows it is normal. Treat \"irregular\" as the positive class. What kind of outcome is this?",
+    options: [
+      { key: "A", text: "False positive", correct: true,
+        explain: "The watch said \"irregular\" (positive) and was wrong. It is a false alarm." },
+      { key: "B", text: "False negative", tag: "M3",
+        explain: "A false negative would be a real problem the watch missed. Here it raised an alarm that was not needed." },
+      { key: "C", text: "True positive", tag: "Other",
+        explain: "\"True\" means the warning was right, but the rhythm was normal." },
+      { key: "D", text: "True negative", tag: "Other",
+        explain: "The watch gave a warning, which is a positive prediction, not a negative one." },
+    ],
+  },
+  19: {
+    obj: "O1", type: "multi",
+    stem: "A car camera looks for pedestrians. Treat \"pedestrian\" as the positive class. Which of these are false negatives? Select all that apply.",
+    options: [
+      { key: "A", text: "A person crosses the road and the camera does not detect them", correct: true,
+        explain: "A real pedestrian was missed, so this is a false negative." },
+      { key: "B", text: "The camera detects a lamp post as a pedestrian", tag: "M3",
+        explain: "This is a false alarm, a false positive. A false negative is a real pedestrian that was missed." },
+      { key: "C", text: "The road is empty and the camera detects no one", tag: "Other",
+        explain: "No pedestrian and no detection. The camera was right, so this is a true negative." },
+      { key: "D", text: "A person crosses the road and the camera detects them", tag: "Other",
+        explain: "A real pedestrian was detected, so the camera was right. This is a true positive." },
+    ],
+  },
+  20: {
+    obj: "O2", type: "single",
+    matrix: { values: { tp: 45, fn: 5, fp: 15, tn: 435 }, positive: "spam" },
+    stem: "Using this confusion matrix for a spam filter, what is the precision?",
+    options: [
+      { key: "A", text: "0.75", correct: true,
+        explain: "Precision = TP / (TP + FP) = 45 / 60. Of the emails marked spam, 75% really were spam." },
+      { key: "B", text: "0.90", tag: "M1",
+        explain: "This is recall, 45 / 50. Precision looks at the emails the filter flagged, not at all the real spam." },
+      { key: "C", text: "0.96", tag: "M2",
+        explain: "This is accuracy, (45 + 435) / 500. It is high mostly because of the many normal emails." },
+      { key: "D", text: "0.25", tag: "Other",
+        explain: "This is 15 / 60, the share of flags that were wrong. Precision is the share that were right." },
+    ],
+  },
+  21: {
+    obj: "O2", type: "single",
+    stem: "A model has a recall of 0.70. Which statement is true?",
+    options: [
+      { key: "A", text: "It caught 70% of the real positive cases", correct: true,
+        explain: "Recall is the share of real positives the model found: TP / (TP + FN)." },
+      { key: "B", text: "70% of the cases it flagged were real positives", tag: "M1",
+        explain: "That describes precision. Recall starts from the real positives, not from the flags." },
+      { key: "C", text: "70% of all its predictions were correct", tag: "M1",
+        explain: "That describes accuracy, which counts every prediction, including the easy negatives. Recall only looks at the real positives." },
+      { key: "D", text: "It missed 70% of the real positive cases", tag: "Other",
+        explain: "This turns recall around. A recall of 0.70 means it caught 70% and missed 30%." },
+    ],
+  },
+  22: {
+    obj: "O3", type: "single",
+    stem: "A hospital model warns nurses which patients may develop sepsis so treatment can start early. Missing a case can be fatal, and checking a patient who turns out fine costs a nurse a few minutes. Which metric matters more here?",
+    options: [
+      { key: "A", text: "Recall", correct: true,
+        explain: "A missed sepsis case is a false negative. Recall measures how many real cases the model warns about, so it is the one to keep high." },
+      { key: "B", text: "Precision", tag: "M1",
+        explain: "Precision is about how many warnings turn out to be real. Here a warning that turns out fine costs only a few minutes of a nurse's time." },
+      { key: "C", text: "Accuracy", tag: "M2",
+        explain: "Most patients never develop sepsis, so a model that warns about no one would still score high accuracy." },
+      { key: "D", text: "Neither, both kinds of error should be counted together", tag: "M3",
+        explain: "A missed case can be fatal and a false alarm costs minutes. Adding them together treats a death and a short check as the same." },
+    ],
+  },
+  23: {
+    obj: "O3", type: "single",
+    stem: "A video site removes videos that its model labels as breaking the rules. Wrongly removing a creator's video costs them income and trust. A bad video that slips through is usually caught soon by user reports. Which metric matters more here?",
+    options: [
+      { key: "A", text: "Precision", correct: true,
+        explain: "The costly error is removing a good video, a false positive. Precision drops when false positives rise." },
+      { key: "B", text: "Recall", tag: "M1",
+        explain: "Recall tracks bad videos that slipped through, which the scenario says user reports usually catch." },
+      { key: "C", text: "Accuracy", tag: "M2",
+        explain: "Most videos follow the rules, so a model that removes nothing would still score high accuracy." },
+      { key: "D", text: "Neither, only the total number of errors matters", tag: "M3",
+        explain: "The scenario makes wrong removals the expensive error. Counting all errors together hides that." },
+    ],
+  },
+  24: {
+    obj: "O4", type: "single",
+    stem: "Two models are tested on the same 1,000 loan applications, and 10 of them are fraud. Model X is 99% accurate and catches none of the fraud. Model Y is 97% accurate and catches 8 of the 10 fraud cases. Which model is better at finding fraud?",
+    options: [
+      { key: "A", text: "Model Y, because it catches 8 of the 10 fraud cases", correct: true,
+        explain: "Model Y has a recall of 0.80 and Model X has a recall of 0. X scores higher on accuracy only because almost every application is honest." },
+      { key: "B", text: "Model X, because its accuracy is higher", tag: "M2",
+        explain: "X gets its 99% by calling every application honest. With fraud this rare, accuracy rewards doing nothing." },
+      { key: "C", text: "They are about the same, since both are above 95% accurate", tag: "M2",
+        explain: "Their accuracy is close, but one finds 8 fraud cases and the other finds none. Accuracy hides that gap." },
+      { key: "D", text: "Model X, because it makes no false alarms", tag: "M3",
+        explain: "X makes no false alarms only because it flags nothing, so it misses every fraud case. For finding fraud, the misses are what count." },
+    ],
+  },
+  25: {
+    obj: "O4", type: "single",
+    stem: "A team says its new test for a rare disease is 98% accurate. What should you ask before trusting it?",
+    options: [
+      { key: "A", text: "What share of real cases it catches", correct: true,
+        explain: "When the disease is rare, a test that calls everyone healthy can also score very high accuracy. Recall shows whether the test actually finds the disease." },
+      { key: "B", text: "Nothing, 98% accuracy means the test is reliable", tag: "M2",
+        explain: "If only 2% of people have the disease, a test that says \"healthy\" to everyone is already 98% accurate and catches no one." },
+      { key: "C", text: "Whether its precision is also 98%, since precision and accuracy measure the same thing", tag: "M1",
+        explain: "They measure different things. Precision only looks at the people the test flagged." },
+      { key: "D", text: "How many errors it makes in total, since every error costs the same", tag: "M3",
+        explain: "A missed case and a false alarm usually have different costs. The total alone hides which error the test makes." },
+    ],
+  },
 };
 
-// Diagnostic: one item per objective. None of these are used as checks.
-const DIAGNOSTIC = [2, 6, 11, 10];
+// Each item has one role, so no learner sees the same question twice.
+// Diagnostic: two items per objective, before the lessons.
+const DIAGNOSTIC = [2, 13, 6, 14, 11, 15, 10, 16];
+// Formative checks are set on the slides below (items 1, 9, 4, 8, 7).
+// Summative: one item per objective, after the lessons.
+const SUMMATIVE = [3, 5, 12, 17];
+// Retention: two new items per objective, five to six days later.
+const RETENTION = [18, 19, 20, 21, 22, 23, 24, 25];
+const RETENTION_PASS = 6; // of 8, for the certificate
+const RETENTION_DAYS = 5; // the quiz opens this many days after the lessons
 
 // Slides. "check" means a formative check follows this slide.
 // "predict" slides ask for a prediction before the text is revealed.
 const SLIDES = [
   { title: "What a classifier does",
-    visual: { kind: "placeholder", text: "Transactions flow into a box labelled \"model\" and come out tagged \"fraud\" or \"not fraud\"." },
+    visual: { kind: "flow" },
     text: ["A classifier answers a yes or no question for each case.", "This module uses a fraud detector as the running example."] },
   { title: "Four possible outcomes",
     visual: { kind: "matrix", labels: true },
     text: ["Every prediction lands in one of four cells: true positive, false positive, true negative or false negative.", "\"True\" or \"false\" says whether the model was right. \"Positive\" or \"negative\" says what it predicted."] },
   { title: "Two different mistakes",
     predict: { prompt: "For a cancer test, which mistake is worse?", choices: ["A false alarm", "A missed case"] },
-    visual: { kind: "placeholder", text: "A false alarm (healthy patient sent for a test) next to a missed case (sick patient sent home)." },
+    visual: { kind: "twoMistakes" },
     text: ["A false positive is a false alarm. A false negative is a missed case.", "They are different mistakes with different costs."],
     check: 1 },
   { title: "The matrix with numbers",
@@ -220,18 +415,18 @@ const SLIDES = [
     text: ["Recall asks: of all the real fraud, how much did the model catch?", "40 / 60 = 0.67"] },
   { title: "Telling them apart",
     predict: { prompt: "A model flags only one transaction, and it is fraud. What are its precision and recall?", choices: ["High precision, low recall", "Low precision, high recall", "Both high"] },
-    visual: { kind: "placeholder", text: "The \"predicted fraud\" column and the \"actually fraud\" row side by side, each with its question." },
+    visual: { kind: "readMatrix" },
     text: ["Precision looks down the \"predicted\" column. Recall looks across the \"actual\" row.", "They answer different questions and can move in opposite directions."],
     check: 4 },
   { title: "The trade-off",
-    visual: { kind: "placeholder", text: "A slider for how cautious the model is. Moving it changes the matrix." },
+    visual: { kind: "tradeoff" },
     text: ["Flagging more cases catches more fraud (recall goes up) but adds false alarms (precision goes down).", "You usually cannot max out both."] },
   { title: "Fraud screening",
     predict: { prompt: "A review team can check only 50 flags a day. Which error hurts more?", choices: ["False alarms", "Missed fraud"] },
-    visual: { kind: "placeholder", text: "A reviewer with a short queue next to a long queue full of normal purchases." },
+    visual: { kind: "queues" },
     text: ["When false alarms waste limited reviews, precision matters more."] },
   { title: "The rule",
-    visual: { kind: "placeholder", text: "Two scales. One weighs false positives heavier and points to precision. The other weighs false negatives heavier and points to recall." },
+    visual: { kind: "scales" },
     text: ["Find the costlier error.", "If false alarms cost more, favor precision. If misses cost more, favor recall."],
     check: 8 },
   { title: "Cancer screening",
@@ -239,7 +434,7 @@ const SLIDES = [
     visual: { kind: "matrix", values: null, labels: true, positive: "cancer" },
     text: ["A missed cancer can cost a life, while a false alarm costs one more test.", "Here recall matters more."] },
   { title: "Same model, different question",
-    visual: { kind: "placeholder", text: "One matrix with two labels: \"fraud team\" pointing to precision and \"cancer clinic\" pointing to recall." },
+    visual: { kind: "readMatrix", captions: [["Fraud team:", "only 50 reviews a day, so it asks how many flags are real. That is precision."], ["Cancer clinic:", "a miss can cost a life, so it asks how many real cases were caught. That is recall."]] },
     text: ["No metric is best everywhere.", "The right one depends on which mistake costs more in that setting."] },
   { title: "Summary",
     visual: { kind: "matrix", labels: true },

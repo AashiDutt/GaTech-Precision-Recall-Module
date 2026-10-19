@@ -82,7 +82,7 @@ function setProgress(text) { progressEl.textContent = text || ""; }
 
 // ---------- confusion matrix visual ----------
 
-function matrixView({ values, labels, highlight = [], positive = "fraud" }) {
+function matrixView({ values, labels, highlight = [], positive = "fraud", compact = false }) {
   const cell = (key, name) => {
     const v = values ? values[key] : null;
     const content = [];
@@ -91,7 +91,7 @@ function matrixView({ values, labels, highlight = [], positive = "fraud" }) {
     return el("td", { class: "cell " + key + (highlight.includes(key) ? " hl" : "") }, content);
   };
   const neg = "not " + positive;
-  return el("table", { class: "matrix", "aria-label": "Confusion matrix" }, [
+  return el("table", { class: "matrix" + (compact ? " compact" : ""), "aria-label": "Confusion matrix" }, [
     el("tr", {}, [
       el("th", {}),
       el("th", { scope: "col", text: "Predicted " + positive }),
@@ -113,13 +113,28 @@ function matrixView({ values, labels, highlight = [], positive = "fraud" }) {
 function visualView(v) {
   if (!v) return null;
   if (v.kind === "matrix") return matrixView(v);
-  return el("div", { class: "visual-placeholder" }, [
-    el("span", { class: "ph-label", text: "Visual (coming in week of Nov 2)" }),
-    el("p", { text: v.text }),
-  ]);
+  return vizCustom(v);
 }
 
 // ---------- item rendering and scoring ----------
+
+// Options are shuffled so the right answer is not always in the same place.
+// The order is fixed per learner and item, so a reload shows the same order.
+// True or false items keep their natural order.
+function optionOrder(itemId) {
+  const item = ITEMS[itemId];
+  if (item.type === "tf") return item.options;
+  const seedText = (state.email || R_CODE || "") + ":" + itemId;
+  let h = 2166136261;
+  for (const ch of seedText) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; }
+  const rand = () => { h = (Math.imul(h, 1664525) + 1013904223) >>> 0; return h / 4294967296; };
+  const opts = [...item.options];
+  for (let i = opts.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [opts[i], opts[j]] = [opts[j], opts[i]];
+  }
+  return opts;
+}
 
 function itemForm(itemId, { onSubmit, submitLabel = "Submit" }) {
   const item = ITEMS[itemId];
@@ -127,9 +142,9 @@ function itemForm(itemId, { onSubmit, submitLabel = "Submit" }) {
   const name = "item-" + itemId;
   const form = el("form", { class: "item" });
   form.appendChild(el("p", { class: "stem", text: item.stem }));
-  if (item.matrix) form.appendChild(matrixView({ values: MATRIX }));
+  if (item.matrix) form.appendChild(matrixView(item.matrix === true ? { values: MATRIX } : item.matrix));
   const list = el("div", { class: "options", role: multi ? "group" : "radiogroup" });
-  item.options.forEach((opt) => {
+  optionOrder(itemId).forEach((opt) => {
     const id = name + "-" + opt.key;
     list.appendChild(el("label", { class: "option", for: id }, [
       el("input", { type: multi ? "checkbox" : "radio", name, id, value: opt.key }),
@@ -324,7 +339,7 @@ function renderDiagIntro() {
   btn.addEventListener("click", () => go("diagnostic"));
   app.replaceChildren(
     el("h1", { text: "A quick check first" }),
-    el("p", { text: "Four questions, one for each learning goal. There is no score to worry about. The point is to show you what you already know and where your gaps are, before the lessons start." }),
+    el("p", { text: "Eight questions, two for each learning goal. There is no score to worry about. The point is to show you what you already know and where your gaps are, before the lessons start." }),
     btn,
   );
 }
@@ -354,13 +369,16 @@ function renderReport() {
   setProgress("Your starting point");
   const diag = state.responses.filter((r) => r.phase === "diagnostic");
   const rows = Object.entries(OBJECTIVES).map(([key, label]) => {
-    const r = diag.find((x) => x.obj === key);
-    const known = r && r.correct;
-    const tagText = r && !r.correct && r.tags.length
-      ? "You may be thinking: " + MISCONCEPTIONS[r.tags[0]].toLowerCase() + "."
+    const rs = diag.filter((x) => x.obj === key);
+    const right = rs.filter((x) => x.correct).length;
+    const known = rs.length > 0 && right === rs.length;
+    const partly = !known && right > 0;
+    const tag = rs.flatMap((x) => x.tags).find((t) => MISCONCEPTIONS[t]);
+    const tagText = !known && tag
+      ? "You may be thinking: " + MISCONCEPTIONS[tag].toLowerCase() + "."
       : null;
-    return el("li", { class: known ? "known" : "gap" }, [
-      el("strong", { text: (known ? "You already know this: " : "Likely gap: ") }),
+    return el("li", { class: known ? "known" : (partly ? "partly" : "gap") }, [
+      el("strong", { text: (known ? "You already know this: " : (partly ? "Partly there: " : "Likely gap: ")) }),
       label + ".",
       tagText ? el("span", { class: "misconception", text: " " + tagText }) : null,
     ]);
@@ -434,7 +452,7 @@ function slideNav({ canForward, forwardLabel }) {
 function renderSlides() {
   navInit();
   const idx = state.slideIndex;
-  if (idx >= SLIDES.length) return go("end");
+  if (idx >= SLIDES.length) return go("summIntro");
   const slide = SLIDES[idx];
   setProgress("Slide " + (idx + 1) + " of " + SLIDES.length);
 
@@ -534,16 +552,104 @@ function resultsString() {
   return btoa(unescape(encodeURIComponent(JSON.stringify(state))));
 }
 
-function renderEnd() {
+// ---------- final (summative) quiz ----------
+
+function renderSummIntro() {
+  endSegment();
+  if ((state.summIndex || 0) >= SUMMATIVE.length) return go("summary");
+  setProgress("Final quiz");
+  const btn = el("button", { class: "primary", text: "Start the final quiz" });
+  btn.addEventListener("click", () => { state.summIndex = state.summIndex || 0; go("summative"); });
+  app.replaceChildren(
+    el("h1", { text: "Final quiz" }),
+    el("p", { text: "Four questions, one for each learning goal. You will see how you did, with feedback, after the last one." }),
+    btn,
+  );
+}
+
+function renderSummative() {
+  const i = state.summIndex || 0;
+  if (i >= SUMMATIVE.length) return go("summary");
+  const itemId = SUMMATIVE[i];
+  setProgress("Final quiz " + (i + 1) + " of " + SUMMATIVE.length);
+  startSegment("summative");
+  app.replaceChildren(
+    el("h1", { text: "Question " + (i + 1) }),
+    itemForm(itemId, {
+      submitLabel: i === SUMMATIVE.length - 1 ? "Finish" : "Next",
+      onSubmit: (chosen) => {
+        recordResponse("summative", itemId, chosen, scoreItem(itemId, chosen));
+        state.summIndex = i + 1;
+        save();
+        renderSummative();
+      },
+    }),
+  );
+}
+
+function scoreByObjective(phase) {
+  const out = {};
+  for (const key of Object.keys(OBJECTIVES)) {
+    const rs = state.responses.filter((r) => r.phase === phase && r.obj === key);
+    out[key] = { right: rs.filter((r) => r.correct).length, total: rs.length };
+  }
+  return out;
+}
+
+function retentionLink() {
+  return location.origin + location.pathname + "?retention=" + state.retentionCode;
+}
+
+function formatDate(d) {
+  return d.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
+}
+
+function renderSummary() {
   endSegment();
   setProgress("Done");
-  state.completedAt = state.completedAt || new Date().toISOString();
+  if (!state.completedAt) state.completedAt = new Date().toISOString();
+  if (!state.retentionCode) {
+    state.retentionCode = (crypto.randomUUID() + crypto.randomUUID()).replace(/-/g, "");
+  }
   save();
+
+  const before = scoreByObjective("diagnostic");
+  const after = scoreByObjective("summative");
+  const table = el("table", { class: "summary-table" }, [
+    el("tr", {}, [el("th", { text: "Learning goal" }), el("th", { text: "Before" }), el("th", { text: "After" })]),
+    ...Object.entries(OBJECTIVES).map(([key, label]) => el("tr", {}, [
+      el("td", { text: label }),
+      el("td", { text: before[key].right + " of " + before[key].total }),
+      el("td", { class: after[key].right === after[key].total ? "good" : "", text: after[key].right + " of " + after[key].total }),
+    ])),
+  ]);
+
+  const review = el("div", { class: "review" });
+  SUMMATIVE.forEach((itemId, n) => {
+    const r = [...state.responses].reverse().find((x) => x.phase === "summative" && x.itemId === itemId);
+    if (!r) return;
+    review.appendChild(el("h3", { text: "Question " + (n + 1) }));
+    review.appendChild(el("p", { class: "stem", text: ITEMS[itemId].stem }));
+    review.appendChild(feedbackView(itemId, r.chosen, r.correct));
+  });
+
+  const opens = new Date(new Date(state.completedAt).getTime() + RETENTION_DAYS * 864e5);
+  const link = el("input", { type: "text", class: "link-box", readonly: true, value: retentionLink(), "aria-label": "Your retention quiz link" });
+  link.addEventListener("focus", () => link.select());
+
   const area = el("textarea", { class: "results", rows: 4, readonly: true });
   area.value = resultsString();
+
   app.replaceChildren(
-    el("h1", { text: "You have finished the lessons" }),
-    el("p", { text: "The summative quiz, completion summary and retention quiz are added in the next build (Milestone 2)." }),
+    el("h1", { text: "You have finished the module" }),
+    el("p", { text: "Here is how your answers changed from the start to the end." }),
+    table,
+    el("h2", { class: "notice-title", text: "Your final quiz" }),
+    review,
+    el("h2", { class: "notice-title", text: "One last step in five days" }),
+    el("p", { text: "A short retention quiz checks what you still remember. It has eight new questions and takes about five minutes. Score 6 or more to earn your certificate." }),
+    el("p", {}, [el("strong", { text: "It opens on " + formatDate(opens) + "." }), " You will get an email with the link. You can also save it now. It works on any device."]),
+    link,
     el("details", {}, [
       el("summary", { text: "Results string (backup if saving fails)" }),
       el("p", { class: "muted", text: "Copy this and paste it into the course form if asked." }),
@@ -600,6 +706,17 @@ leaveDialog.addEventListener("close", () => {
 
 window.addEventListener("pagehide", () => { endSegment(); Store.beacon(); });
 
+// Time on task only counts while the page is visible.
+let pausedSegment = null;
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) {
+    if (segmentKey) { pausedSegment = segmentKey; endSegment(); }
+  } else if (pausedSegment) {
+    startSegment(pausedSegment);
+    pausedSegment = null;
+  }
+});
+
 // ---------- router ----------
 
 const SCREENS = {
@@ -611,7 +728,10 @@ const SCREENS = {
   diagnostic: renderDiagnostic,
   report: renderReport,
   slides: renderSlides,
-  end: renderEnd,
+  end: renderSummIntro, // older saves used "end" for the finish screen
+  summIntro: renderSummIntro,
+  summative: renderSummative,
+  summary: renderSummary,
   saved: renderSaved,
 };
 
@@ -622,4 +742,157 @@ function render() {
   window.scrollTo(0, 0);
 }
 
-render();
+// ---------- retention quiz ----------
+// Opened from the emailed link (?retention=<code>), on any device, without signing in.
+// The code is a long random string saved with the learner's row at the end of the module.
+// Two database functions check the code and store the answers. Nothing else is readable.
+
+const R_CODE = new URLSearchParams(location.search).get("retention");
+const R_KEY = "pr-retention-" + R_CODE;
+let rstate = null;
+
+function rSave() { try { localStorage.setItem(R_KEY, JSON.stringify(rstate)); } catch (e) {} }
+
+function rShow(...nodes) {
+  leaveBtn.hidden = true;
+  app.replaceChildren(...nodes);
+  app.focus({ preventScroll: true });
+  window.scrollTo(0, 0);
+}
+
+function rError(msg, retry) {
+  const btn = el("button", { class: "primary", text: "Try again", onclick: retry });
+  rShow(el("h1", { text: "Something went wrong" }), el("p", { text: msg }), btn);
+}
+
+async function startRetention() {
+  setProgress("Retention quiz");
+  try { rstate = JSON.parse(localStorage.getItem(R_KEY)); } catch (e) {}
+  if (rstate && rstate.result) return renderRetentionResult();
+  rShow(el("h1", { text: "Retention quiz" }), el("p", { class: "muted", text: "Checking your link..." }));
+  let info;
+  try {
+    const rows = await Store.rpc("retention_lookup", { p_code: R_CODE });
+    info = rows && rows[0];
+  } catch (e) {
+    return rError("Could not reach the server. Check your connection and try again.", startRetention);
+  }
+  if (!info) {
+    return rShow(el("h1", { text: "Link not recognised" }),
+      el("p", { text: "This retention link is not valid. Please use the exact link from your email." }));
+  }
+  if (info.done) {
+    return rShow(el("h1", { text: "Already done" }),
+      el("p", { text: "You have already taken the retention quiz. Thank you for taking part." }));
+  }
+  const opens = new Date(info.opens_at);
+  if (Date.now() < opens.getTime()) {
+    return rShow(el("h1", { text: "Not open yet" }),
+      el("p", { text: "The retention quiz opens on " + formatDate(opens) + ". Come back then with this same link." }));
+  }
+  if (!rstate) rstate = { index: 0, answers: [], startedAt: new Date().toISOString() };
+  rSave();
+  if (rstate.index > 0) return renderRetentionItem();
+  const btn = el("button", { class: "primary", text: "Start the quiz", onclick: renderRetentionItem });
+  rShow(
+    el("h1", { text: "Retention quiz" }),
+    el("p", { text: "Eight new questions on the same ideas as the module. Answer from memory, without notes. You will see your score and the answers at the end." }),
+    el("p", { text: "Score 6 or more to earn your certificate." }),
+    btn,
+  );
+}
+
+function renderRetentionItem() {
+  const i = rstate.index;
+  if (i >= RETENTION.length) return submitRetention();
+  const itemId = RETENTION[i];
+  setProgress("Retention quiz " + (i + 1) + " of " + RETENTION.length);
+  rShow(
+    el("h1", { text: "Question " + (i + 1) }),
+    itemForm(itemId, {
+      submitLabel: i === RETENTION.length - 1 ? "Finish" : "Next",
+      onSubmit: (chosen) => {
+        const item = ITEMS[itemId];
+        rstate.answers.push({
+          itemId, obj: item.obj, chosen, correct: scoreItem(itemId, chosen),
+          tags: item.options.filter((o) => chosen.includes(o.key) && !o.correct && o.tag).map((o) => o.tag),
+          at: new Date().toISOString(),
+        });
+        rstate.index = i + 1;
+        rSave();
+        renderRetentionItem();
+      },
+    }),
+  );
+}
+
+async function submitRetention() {
+  const score = rstate.answers.filter((a) => a.correct).length;
+  const passed = score >= RETENTION_PASS;
+  rShow(el("h1", { text: "Saving your answers" }), el("p", { class: "muted", text: "One moment..." }));
+  let status;
+  try {
+    status = await Store.rpc("retention_submit", {
+      p_code: R_CODE, p_answers: rstate.answers, p_score: score, p_passed: passed, p_started_at: rstate.startedAt,
+    });
+  } catch (e) {
+    return rError("Your answers are kept on this device, but they could not be sent. Check your connection and try again.", submitRetention);
+  }
+  if (status !== "ok" && status !== "done") {
+    return rError("The server did not accept your answers (" + status + "). Please contact the study team.", submitRetention);
+  }
+  rstate.result = { score, passed, at: new Date().toISOString() };
+  rSave();
+  renderRetentionResult();
+}
+
+function renderRetentionResult() {
+  const { score, passed, at } = rstate.result;
+  setProgress("Retention quiz");
+  const review = el("div", { class: "review" });
+  rstate.answers.forEach((a, n) => {
+    const item = ITEMS[a.itemId];
+    const right = item.options.filter((o) => o.correct);
+    const box = el("div", { class: "feedback " + (a.correct ? "ok" : "bad") }, [
+      el("p", { class: "verdict", text: a.correct ? "Correct." : "Not quite." }),
+      el("p", { class: "answer", text: "The correct answer is: " + right.map((o) => o.text).join(" and ") + "." }),
+      ...right.map((o) => el("p", { text: o.explain })),
+    ]);
+    review.append(el("h3", { text: "Question " + (n + 1) }), el("p", { class: "stem", text: item.stem }), box);
+  });
+
+  const parts = [
+    el("h1", { text: "You scored " + score + " of " + RETENTION.length }),
+  ];
+  if (passed) {
+    const name = el("input", { type: "text", id: "cert-name", placeholder: "Your name", autocomplete: "name" });
+    const holder = el("div");
+    const make = el("button", { class: "primary", text: "Show my certificate" });
+    make.addEventListener("click", () => {
+      holder.replaceChildren(certificateView(name.value.trim() || "Learner", score, at),
+        el("button", { class: "primary", text: "Print or save as PDF", onclick: () => window.print() }));
+    });
+    parts.push(
+      el("p", { text: "Well done. You remembered the key ideas five days later, so you have earned the certificate." }),
+      el("label", { for: "cert-name", text: "Name to print on the certificate (not saved)" }),
+      name, make, holder,
+    );
+  } else {
+    parts.push(el("p", { text: "The certificate needs 6 of 8. Thank you for coming back and taking part. The answers below show what to review." }));
+  }
+  parts.push(el("h2", { class: "notice-title", text: "Your answers" }), review);
+  rShow(...parts);
+}
+
+function certificateView(name, score, at) {
+  return el("div", { class: "certificate" }, [
+    el("p", { class: "cert-kicker", text: "Certificate of retention" }),
+    el("p", { class: "cert-name", text: name }),
+    el("p", { text: "completed the Precision and Recall module and scored " + score + " of " + RETENTION.length + " on the retention quiz, taken at least five days after the lessons." }),
+    el("p", { class: "cert-skills", text: "Confusion matrix · Precision and recall · Choosing a metric by the cost of each error · Why accuracy misleads" }),
+    el("p", { class: "cert-foot", text: new Date(at).toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" }) + " · A CS6460 student project" }),
+  ]);
+}
+
+if (R_CODE) startRetention();
+else render();
