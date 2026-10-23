@@ -587,15 +587,6 @@ function renderSummative() {
   );
 }
 
-function scoreByObjective(phase) {
-  const out = {};
-  for (const key of Object.keys(OBJECTIVES)) {
-    const rs = state.responses.filter((r) => r.phase === phase && r.obj === key);
-    out[key] = { right: rs.filter((r) => r.correct).length, total: rs.length };
-  }
-  return out;
-}
-
 function retentionLink() {
   return location.origin + location.pathname + "?retention=" + state.retentionCode;
 }
@@ -613,15 +604,21 @@ function renderSummary() {
   }
   save();
 
-  const before = scoreByObjective("diagnostic");
-  const after = scoreByObjective("summative");
+  // Reported for the whole module: the diagnostic has two items per goal and the
+  // final quiz one, so a per-goal comparison would mostly show noise.
+  const score = (phase) => {
+    const rs = state.responses.filter((r) => r.phase === phase);
+    const ids = new Set(), latest = [];
+    for (const r of [...rs].reverse()) if (!ids.has(r.itemId)) { ids.add(r.itemId); latest.push(r); }
+    const right = latest.filter((r) => r.correct).length;
+    return { right, total: latest.length, pct: latest.length ? Math.round((100 * right) / latest.length) : 0 };
+  };
+  const before = score("diagnostic");
+  const after = score("summative");
   const table = el("table", { class: "summary-table" }, [
-    el("tr", {}, [el("th", { text: "Learning goal" }), el("th", { text: "Before" }), el("th", { text: "After" })]),
-    ...Object.entries(OBJECTIVES).map(([key, label]) => el("tr", {}, [
-      el("td", { text: label }),
-      el("td", { text: before[key].right + " of " + before[key].total }),
-      el("td", { class: after[key].right === after[key].total ? "good" : "", text: after[key].right + " of " + after[key].total }),
-    ])),
+    el("tr", {}, [el("th", { text: "" }), el("th", { text: "Score" }), el("th", { text: "Percent" })]),
+    el("tr", {}, [el("td", { text: "Before the lessons (diagnostic)" }), el("td", { text: before.right + " of " + before.total }), el("td", { text: before.pct + "%" })]),
+    el("tr", {}, [el("td", { text: "After the lessons (final quiz)" }), el("td", { text: after.right + " of " + after.total }), el("td", { class: after.pct >= before.pct ? "good" : "", text: after.pct + "%" })]),
   ]);
 
   const review = el("div", { class: "review" });
@@ -642,7 +639,7 @@ function renderSummary() {
 
   app.replaceChildren(
     el("h1", { text: "You have finished the module" }),
-    el("p", { text: "Here is how your answers changed from the start to the end." }),
+    el("p", { text: "Here is how you did before and after the lessons. The final quiz has fewer questions, so compare the percentages." }),
     table,
     el("h2", { class: "notice-title", text: "Your final quiz" }),
     review,
