@@ -924,7 +924,7 @@ function renderRetentionResult() {
 
 function certificateView(name, score, at) {
   return el("div", { class: "certificate" }, [
-    el("p", { class: "cert-kicker", text: "Certificate of retention" }),
+    el("p", { class: "cert-kicker", text: "Certificate of Completion" }),
     el("p", { class: "cert-name", text: name }),
     el("p", { text: "completed the Precision and Recall module and scored " + score + " of " + RETENTION.length + " on the retention quiz, taken at least five days after the lessons." }),
     el("p", { class: "cert-skills", text: "Confusion matrix · Precision and recall · Choosing a metric by the cost of each error · Why accuracy misleads" }),
