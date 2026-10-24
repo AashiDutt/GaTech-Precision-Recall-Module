@@ -6,7 +6,7 @@ A short self-paced module on the confusion matrix, precision, recall and the acc
 1. Sign up (email, data notice, consent), or sign in to continue. Nothing is saved before consent.
 2. Diagnostic: 8 questions, two per learning goal, then a calibration report.
 3. 15 slides with visuals, predict-first prompts and 5 checks. Feedback depends on the arm.
-4. Final quiz: 4 questions, one per goal, then a summary of before and after, feedback by arm, and the retention link.
+4. Final quiz: 4 questions, one per goal. Then a results page with feedback by arm, and a next-steps page with the retention link, copy and calendar buttons, and the certificate button (greyed out until the retention quiz is passed).
 5. Retention quiz five days later: 8 new questions, opened from a personal link on any device. A score of 6 or more earns a certificate the learner can print or save as PDF.
 
 ## Items
@@ -31,6 +31,9 @@ Arm A gets explanatory feedback (why the chosen answer is wrong and the misconce
 ## Setup
 1. Supabase SQL Editor: run `setup.sql` (done in Milestone 1), then `setup-milestone2.sql`.
 2. Anonymous sign-ins must be on (done in Milestone 1).
+
+## Demo mode
+Add `?demo` to the link (for example `.../GaTech-Precision-Recall-Module/?reset&demo`) and sign up. The retention quiz opens straight after the final quiz, so you can show the whole journey to the certificate in one go. Demo learners are flagged (`state.demo`), skipped by `reminders.sql`, and must be left out of the analysis. The database side needs the updated `setup-milestone2.sql`.
 
 ## Sending the retention reminder
 Once a day during the study:
