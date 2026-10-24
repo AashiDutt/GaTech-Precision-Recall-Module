@@ -650,16 +650,8 @@ function renderNext() {
   const days = state.demo ? 0 : RETENTION_DAYS;
   const opens = new Date(new Date(state.completedAt).getTime() + days * 864e5);
 
-  // Initialize retention state with demo flag
-  let retentionState = null;
-  try { retentionState = JSON.parse(localStorage.getItem("pr-retention-" + state.retentionCode)) || {}; } catch (e) {}
-  if (!retentionState.demo && state.demo) {
-    retentionState.demo = true;
-    try { localStorage.setItem("pr-retention-" + state.retentionCode, JSON.stringify(retentionState)); } catch (e) {}
-  }
-
   let result = null;
-  try { result = retentionState.result || null; } catch (e) {}
+  try { result = (JSON.parse(localStorage.getItem("pr-retention-" + state.retentionCode)) || {}).result || null; } catch (e) {}
 
   const link = el("input", { type: "text", class: "link-box", readonly: true, value: retentionLink(), "aria-label": "Your retention quiz link" });
   link.addEventListener("focus", () => link.select());
@@ -832,12 +824,11 @@ async function startRetention() {
       el("p", { text: "You have already taken the retention quiz. Thank you for taking part." }));
   }
   const opens = new Date(info.opens_at);
-  const isDemo = rstate && rstate.demo;
-  if (!isDemo && Date.now() < opens.getTime()) {
+  if (Date.now() < opens.getTime()) {
     return rShow(el("h1", { text: "Not open yet" }),
       el("p", { text: "The retention quiz opens on " + formatDate(opens) + ". Come back then with this same link." }));
   }
-  if (!rstate) rstate = { index: 0, answers: [], startedAt: new Date().toISOString() };
+  if (!rstate || typeof rstate.index !== "number") rstate = { index: 0, answers: [], startedAt: new Date().toISOString() };
   rSave();
   if (rstate.index > 0) return renderRetentionItem();
   const btn = el("button", { class: "primary", text: "Start the quiz", onclick: renderRetentionItem });
