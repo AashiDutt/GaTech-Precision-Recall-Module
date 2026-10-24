@@ -1,5 +1,6 @@
 -- Milestone 2. Run once in Supabase: SQL Editor > New query > paste > Run.
 -- Adds the retention quiz. Safe to run again.
+-- Demo learners (signed up from a link ending in ?demo) can take it straight away.
 --
 -- The retention quiz opens from an emailed link on any device, without signing in.
 -- The link holds a long random code that the app saved with the learner's row when
@@ -27,7 +28,8 @@ create or replace function public.retention_lookup(p_code text)
 returns table (completed_at timestamptz, opens_at timestamptz, done boolean)
 language sql stable security definer set search_path = public as $$
   select (s.state->>'completedAt')::timestamptz,
-         (s.state->>'completedAt')::timestamptz + interval '5 days',
+         (s.state->>'completedAt')::timestamptz
+           + case when s.state->>'demo' = 'true' then interval '0' else interval '5 days' end,
          exists (select 1 from public.retention r where r.user_id = s.user_id)
   from public.sessions s
   where length(p_code) >= 32 and s.state->>'retentionCode' = p_code
@@ -46,7 +48,10 @@ begin
   where length(p_code) >= 32 and state->>'retentionCode' = p_code
   limit 1;
   if not found then return 'invalid'; end if;
-  if now() < (s.state->>'completedAt')::timestamptz + interval '5 days' then return 'early'; end if;
+  if now() < (s.state->>'completedAt')::timestamptz
+       + (case when s.state->>'demo' = 'true' then interval '0' else interval '5 days' end) then
+    return 'early';
+  end if;
   insert into public.retention (user_id, email, arm, answers, score, passed, started_at)
   values (s.user_id, s.email, s.arm, p_answers, p_score, p_passed, p_started_at)
   on conflict (user_id) do nothing;

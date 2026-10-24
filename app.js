@@ -6,9 +6,13 @@ const progressEl = document.getElementById("progress");
 const leaveBtn = document.getElementById("leaveBtn");
 const leaveDialog = document.getElementById("leaveDialog");
 
+// ?demo marks a new sign up as a demo learner: the retention quiz opens straight away,
+// and the row is flagged so it stays out of the study data.
+const DEMO = new URLSearchParams(location.search).has("demo");
+
 if (new URLSearchParams(location.search).has("reset")) {
   Store.resetAll();
-  history.replaceState(null, "", location.pathname);
+  history.replaceState(null, "", location.pathname + (DEMO ? "?demo" : ""));
 }
 
 // A refresh keeps the current learner in place. A new tab starts at the landing page.
@@ -324,6 +328,7 @@ function renderRegister() {
     }
     state = newState();
     state.email = email;
+    if (DEMO) state.demo = true;
     state.consentAt = new Date().toISOString();
     state.arm = Math.random() < 0.5 ? "A" : "B"; // random assignment at registration
     leaveBtn.hidden = false;
@@ -595,64 +600,102 @@ function formatDate(d) {
   return d.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
 }
 
+// Page 1 after the final quiz: the score and feedback on each question.
 function renderSummary() {
   endSegment();
-  setProgress("Done");
+  setProgress("Final quiz results");
   if (!state.completedAt) state.completedAt = new Date().toISOString();
   if (!state.retentionCode) {
     state.retentionCode = (crypto.randomUUID() + crypto.randomUUID()).replace(/-/g, "");
   }
   save();
 
-  // Reported for the whole module: the diagnostic has two items per goal and the
-  // final quiz one, so a per-goal comparison would mostly show noise.
-  const score = (phase) => {
-    const rs = state.responses.filter((r) => r.phase === phase);
-    const ids = new Set(), latest = [];
-    for (const r of [...rs].reverse()) if (!ids.has(r.itemId)) { ids.add(r.itemId); latest.push(r); }
-    const right = latest.filter((r) => r.correct).length;
-    return { right, total: latest.length, pct: latest.length ? Math.round((100 * right) / latest.length) : 0 };
-  };
-  const before = score("diagnostic");
-  const after = score("summative");
-  const table = el("table", { class: "summary-table" }, [
-    el("tr", {}, [el("th", { text: "" }), el("th", { text: "Score" }), el("th", { text: "Percent" })]),
-    el("tr", {}, [el("td", { text: "Before the lessons (diagnostic)" }), el("td", { text: before.right + " of " + before.total }), el("td", { text: before.pct + "%" })]),
-    el("tr", {}, [el("td", { text: "After the lessons (final quiz)" }), el("td", { text: after.right + " of " + after.total }), el("td", { class: after.pct >= before.pct ? "good" : "", text: after.pct + "%" })]),
-  ]);
+  const latest = SUMMATIVE.map((itemId) =>
+    [...state.responses].reverse().find((x) => x.phase === "summative" && x.itemId === itemId)).filter(Boolean);
+  const right = latest.filter((r) => r.correct).length;
 
   const review = el("div", { class: "review" });
-  SUMMATIVE.forEach((itemId, n) => {
-    const r = [...state.responses].reverse().find((x) => x.phase === "summative" && x.itemId === itemId);
-    if (!r) return;
+  latest.forEach((r, n) => {
+    const item = ITEMS[r.itemId];
     review.appendChild(el("h3", { text: "Question " + (n + 1) }));
-    review.appendChild(el("p", { class: "stem", text: ITEMS[itemId].stem }));
-    review.appendChild(feedbackView(itemId, r.chosen, r.correct));
+    review.appendChild(el("p", { class: "stem", text: item.stem }));
+    if (item.matrix) review.appendChild(matrixView(item.matrix === true ? { values: MATRIX, compact: true } : { ...item.matrix, compact: true }));
+    review.appendChild(feedbackView(r.itemId, r.chosen, r.correct));
   });
 
-  const opens = new Date(new Date(state.completedAt).getTime() + RETENTION_DAYS * 864e5);
+  const btn = el("button", { class: "primary", text: "Continue →", onclick: () => go("next") });
+  app.replaceChildren(
+    el("h1", { text: "You scored " + right + " of " + latest.length + " on the final quiz" }),
+    review,
+    btn,
+  );
+}
+
+function calendarLink(opens) {
+  const day = (d) => d.toISOString().slice(0, 10).replace(/-/g, "");
+  const end = new Date(opens.getTime() + 864e5);
+  const q = new URLSearchParams({
+    action: "TEMPLATE",
+    text: "Precision and Recall: retention quiz",
+    dates: day(opens) + "/" + day(end),
+    details: "Your 5-minute retention quiz: " + retentionLink(),
+  });
+  return "https://calendar.google.com/calendar/render?" + q.toString();
+}
+
+// Page 2: what happens next, and the certificate once the retention quiz is passed.
+function renderNext() {
+  endSegment();
+  setProgress("Done");
+  const days = state.demo ? 0 : RETENTION_DAYS;
+  const opens = new Date(new Date(state.completedAt).getTime() + days * 864e5);
+
+  let result = null;
+  try { result = (JSON.parse(localStorage.getItem("pr-retention-" + state.retentionCode)) || {}).result || null; } catch (e) {}
+
   const link = el("input", { type: "text", class: "link-box", readonly: true, value: retentionLink(), "aria-label": "Your retention quiz link" });
   link.addEventListener("focus", () => link.select());
+  const copy = el("button", { class: "secondary", text: "Copy link" });
+  copy.addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText(retentionLink()); copy.textContent = "Copied"; }
+    catch (e) { link.focus(); link.select(); }
+  });
+  const cal = el("a", { class: "secondary button-link", href: calendarLink(opens), target: "_blank", rel: "noopener", text: "Add to calendar" });
+
+  const parts = [el("h1", { text: "One last step" })];
+  if (state.demo) {
+    parts.push(
+      el("p", { class: "demo-note", text: "Demo mode: the retention quiz is open now, so you can show the whole journey in one go. This learner is left out of the study data." }),
+      el("a", { class: "primary button-link", href: retentionLink(), text: "Take the retention quiz now →" }),
+    );
+  } else {
+    parts.push(
+      el("p", { text: "A short retention quiz checks what you still remember. It has eight new questions and takes about five minutes." }),
+      el("p", {}, [el("strong", { text: "It opens in " + days + " days, on " + formatDate(opens) + "." }), " We will email you the link. It works on any device."]),
+    );
+  }
+  parts.push(link, el("div", { class: "row left" }, [copy, cal]));
+
+  const passed = result && result.passed;
+  const cert = passed
+    ? el("a", { class: "primary button-link", href: retentionLink(), text: "Download certificate" })
+    : el("button", { class: "primary", disabled: true, text: "Download certificate" });
+  parts.push(
+    el("h2", { class: "notice-title", text: "Certificate" }),
+    el("p", { class: "muted", text: passed
+      ? "You passed the retention quiz with " + result.score + " of " + RETENTION.length + "."
+      : (result ? "The certificate needs 6 of 8 on the retention quiz. You scored " + result.score + "." : "Score 6 or more of 8 on the retention quiz to unlock your certificate.") }),
+    cert,
+  );
 
   const area = el("textarea", { class: "results", rows: 4, readonly: true });
   area.value = resultsString();
-
-  app.replaceChildren(
-    el("h1", { text: "You have finished the module" }),
-    el("p", { text: "Here is how you did before and after the lessons. The final quiz has fewer questions, so compare the percentages." }),
-    table,
-    el("h2", { class: "notice-title", text: "Your final quiz" }),
-    review,
-    el("h2", { class: "notice-title", text: "One last step in five days" }),
-    el("p", { text: "A short retention quiz checks what you still remember. It has eight new questions and takes about five minutes. Score 6 or more to earn your certificate." }),
-    el("p", {}, [el("strong", { text: "It opens on " + formatDate(opens) + "." }), " You will get an email with the link. You can also save it now. It works on any device."]),
-    link,
-    el("details", {}, [
-      el("summary", { text: "Results string (backup if saving fails)" }),
-      el("p", { class: "muted", text: "Copy this and paste it into the course form if asked." }),
-      area,
-    ]),
-  );
+  parts.push(el("details", { class: "backup" }, [
+    el("summary", { text: "Results string (backup if saving fails)" }),
+    el("p", { class: "muted", text: "Copy this and paste it into the course form if asked." }),
+    area,
+  ]));
+  app.replaceChildren(...parts);
 }
 
 // Shown after "Leave for now", and whenever someone reopens the page mid-session.
@@ -729,6 +772,7 @@ const SCREENS = {
   summIntro: renderSummIntro,
   summative: renderSummative,
   summary: renderSummary,
+  next: renderNext,
   saved: renderSaved,
 };
 

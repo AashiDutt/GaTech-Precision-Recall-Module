@@ -201,3 +201,11 @@ input[type=text] { width: 100%; padding: 10px 12px; font: inherit; color: inheri
   .cert-kicker { color: #2f5d8a; }
   .cert-skills, .cert-foot { color: #444; }
 }
+
+.button-link { display: inline-block; text-decoration: none; padding: 10px 18px; border-radius: 8px; margin-top: 16px; }
+a.secondary { border: 1px solid var(--line); color: var(--ink); }
+.row.left { justify-content: flex-start; }
+.row.left > * { margin-top: 10px; }
+.demo-note { background: var(--predict); border-radius: 8px; padding: 10px 14px; font-size: 15px; }
+.backup { margin-top: 24px; }
+button.primary:disabled { background: var(--line); color: var(--muted); }
