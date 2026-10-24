@@ -662,39 +662,36 @@ function renderNext() {
   });
   const cal = el("a", { class: "secondary button-link", href: calendarLink(opens), target: "_blank", rel: "noopener", text: "Add to calendar" });
 
-  const parts = [el("h1", { text: "One last step" })];
+  const parts = [el("h1", { text: "One last step: the retention quiz" })];
+
   if (state.demo) {
     parts.push(
-      el("p", { class: "demo-note", text: "Demo mode: the retention quiz is open now, so you can show the whole journey in one go. This learner is left out of the study data." }),
+      el("p", { class: "demo-note", text: "🧪 Demo mode: the retention quiz is open now, so you can complete the full journey in one session." }),
       el("a", { class: "primary button-link", href: retentionLink(), text: "Take the retention quiz now →" }),
     );
   } else {
     parts.push(
       el("p", { text: "A short retention quiz checks what you still remember. It has eight new questions and takes about five minutes." }),
       el("p", {}, [el("strong", { text: "It opens in " + days + " days, on " + formatDate(opens) + "." }), " We will email you the link. It works on any device."]),
+      el("p", { class: "muted", text: "You can also save the link now and open it on any device:" }),
     );
   }
   parts.push(link, el("div", { class: "row left" }, [copy, cal]));
 
+  // Certificate section
   const passed = result && result.passed;
   const cert = passed
     ? el("a", { class: "primary button-link", href: retentionLink(), text: "Download certificate" })
-    : el("button", { class: "primary", disabled: true, text: "Download certificate" });
+    : el("button", { class: "primary", disabled: true, title: "Complete the retention quiz to unlock", text: "Download certificate" });
+
   parts.push(
-    el("h2", { class: "notice-title", text: "Certificate" }),
+    el("h2", { class: "notice-title", text: "Your certificate" }),
     el("p", { class: "muted", text: passed
-      ? "You passed the retention quiz with " + result.score + " of " + RETENTION.length + "."
-      : (result ? "The certificate needs 6 of 8 on the retention quiz. You scored " + result.score + "." : "Score 6 or more of 8 on the retention quiz to unlock your certificate.") }),
+      ? "You scored " + result.score + " of " + RETENTION.length + " on the retention quiz. ✓"
+      : "Complete the retention quiz and score 6 or more to earn your certificate." }),
     cert,
   );
 
-  const area = el("textarea", { class: "results", rows: 4, readonly: true });
-  area.value = resultsString();
-  parts.push(el("details", { class: "backup" }, [
-    el("summary", { text: "Results string (backup if saving fails)" }),
-    el("p", { class: "muted", text: "Copy this and paste it into the course form if asked." }),
-    area,
-  ]));
   app.replaceChildren(...parts);
 }
 
