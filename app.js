@@ -650,6 +650,11 @@ function renderNext() {
   const days = state.demo ? 0 : RETENTION_DAYS;
   const opens = new Date(new Date(state.completedAt).getTime() + days * 864e5);
 
+  // Store demo flag so retention quiz can access it
+  if (state.demo) {
+    try { localStorage.setItem("pr-demo-" + state.retentionCode, "true"); } catch (e) {}
+  }
+
   let result = null;
   try { result = (JSON.parse(localStorage.getItem("pr-retention-" + state.retentionCode)) || {}).result || null; } catch (e) {}
 
@@ -824,7 +829,8 @@ async function startRetention() {
       el("p", { text: "You have already taken the retention quiz. Thank you for taking part." }));
   }
   const opens = new Date(info.opens_at);
-  if (Date.now() < opens.getTime()) {
+  const isDemo = localStorage.getItem("pr-demo-" + R_CODE) === "true";
+  if (!isDemo && Date.now() < opens.getTime()) {
     return rShow(el("h1", { text: "Not open yet" }),
       el("p", { text: "The retention quiz opens on " + formatDate(opens) + ". Come back then with this same link." }));
   }
