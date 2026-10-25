@@ -821,7 +821,7 @@ async function startRetention() {
   }
   if (info.done) {
     return rShow(el("h1", { text: "Already done" }),
-      el("p", { text: "You have already taken the retention quiz. Thank you for taking part." }));
+      el("p", { text: "You have already passed the retention quiz. Thank you for taking part." }));
   }
   const opens = new Date(info.opens_at);
   if (Date.now() < opens.getTime()) {
@@ -834,8 +834,8 @@ async function startRetention() {
   const btn = el("button", { class: "primary", text: "Start the quiz", onclick: renderRetentionItem });
   rShow(
     el("h1", { text: "Retention quiz" }),
-    el("p", { text: "Eight new questions on the same ideas as the module. Answer from memory, without notes. You will see your score and the answers at the end." }),
-    el("p", { text: "Score 6 or more to earn your certificate." }),
+    el("p", { text: "Eight new questions on the same ideas as the module. Answer from memory, without notes. You will see your score at the end, and the answers once you pass." }),
+    el("p", { text: "Score 6 or more to earn your certificate. If you score less, you can try again." }),
     btn,
   );
 }
@@ -915,11 +915,26 @@ function renderRetentionResult() {
       el("label", { for: "cert-name", text: "Name to print on the certificate (not saved)" }),
       name, make, holder,
     );
+    parts.push(el("h2", { class: "notice-title", text: "Your answers" }), review);
   } else {
-    parts.push(el("p", { text: "The certificate needs 6 of 8. Thank you for coming back and taking part. The answers below show what to review." }));
+    // Correct answers stay hidden until they pass, so a retake still tests memory.
+    const marks = el("ul", { class: "report" }, rstate.answers.map((a, n) =>
+      el("li", { class: a.correct ? "known" : "gap", text: "Question " + (n + 1) + ": " + (a.correct ? "correct" : "not quite") })));
+    const again = el("button", { class: "primary", text: "Try again", onclick: retryRetention });
+    parts.push(
+      el("p", { text: "The certificate needs " + RETENTION_PASS + " of " + RETENTION.length + ". You can try again as many times as you like. The correct answers appear once you pass." }),
+      marks, again,
+    );
   }
-  parts.push(el("h2", { class: "notice-title", text: "Your answers" }), review);
   rShow(...parts);
+}
+
+// A new attempt after a score below the pass mark. The server keeps the first attempt
+// as the study score and records later ones separately.
+function retryRetention() {
+  rstate = { index: 0, answers: [], startedAt: new Date().toISOString(), attempt: (rstate.attempt || 1) + 1 };
+  rSave();
+  renderRetentionItem();
 }
 
 function certificateView(name, score, at) {

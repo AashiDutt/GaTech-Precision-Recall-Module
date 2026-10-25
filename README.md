@@ -7,7 +7,7 @@ A short self-paced module on the confusion matrix, precision, recall and the acc
 2. Diagnostic: 8 questions, two per learning goal, then a calibration report.
 3. 15 slides with visuals, predict-first prompts and 5 checks. Feedback depends on the arm.
 4. Final quiz: 4 questions, one per goal. Then a results page with feedback by arm, and a next-steps page with the retention link, copy and calendar buttons, and the certificate button (greyed out until the retention quiz is passed).
-5. Retention quiz five days later: 8 new questions, opened from a personal link on any device. A score of 6 or more earns a certificate the learner can print or save as PDF.
+5. Retention quiz five days later: 8 new questions, opened from a personal link on any device. A score of 6 or more earns a certificate the learner can print or save as PDF. Below 6, the learner sees which questions were wrong (not the answers) and can try again. The first attempt is the study score (`answers`, `score`, `passed`); retakes only update `attempts`, `best_score` and `ever_passed`.
 
 ## Items
 25 items, each used in one place only, so no learner sees a question twice.
@@ -20,7 +20,7 @@ A short self-paced module on the confusion matrix, precision, recall and the acc
 | Retention quiz | 18 to 25 |
 
 ## A/B design
-Arm A gets explanatory feedback (why the chosen answer is wrong and the misconception behind it). Arm B sees whether the answer was right and the correct answer. The arm is assigned at random at consent. After the retention quiz, everyone sees the correct answers with explanations, since the measurement is over by then.
+Arm A gets explanatory feedback (why the chosen answer is wrong and the misconception behind it). Arm B sees whether the answer was right and the correct answer. The arm is assigned at random at consent. After passing the retention quiz, everyone sees the correct answers with explanations, since the measurement is over by then.
 
 ## Data storage
 - Each save goes to the browser first, then to the Supabase `sessions` table (one row per learner, anonymous sign-in at consent, row level security).
