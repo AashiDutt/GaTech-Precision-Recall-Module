@@ -937,13 +937,33 @@ function retryRetention() {
   renderRetentionItem();
 }
 
+// Decorative corner and seal. The seal's centre is a small 2x2 grid, a nod to the confusion matrix.
+const CERT_CORNER = '<svg viewBox="0 0 40 40" aria-hidden="true"><path d="M2 38V2h36" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 38V8h30" fill="none" stroke="currentColor" stroke-width="1" opacity=".5"/><circle cx="2" cy="2" r="2.5" fill="currentColor"/></svg>';
+const CERT_SEAL = '<svg viewBox="0 0 80 80" aria-hidden="true">' +
+  '<circle cx="40" cy="40" r="37" fill="none" stroke="currentColor" stroke-width="2"/>' +
+  '<circle cx="40" cy="40" r="31" fill="none" stroke="currentColor" stroke-width="1" stroke-dasharray="2 3"/>' +
+  '<rect x="27" y="27" width="12" height="12" rx="1.5" fill="currentColor"/>' +
+  '<rect x="41" y="27" width="12" height="12" rx="1.5" fill="currentColor" opacity=".35"/>' +
+  '<rect x="27" y="41" width="12" height="12" rx="1.5" fill="currentColor" opacity=".35"/>' +
+  '<rect x="41" y="41" width="12" height="12" rx="1.5" fill="currentColor"/></svg>';
+
+function svgNode(markup, cls) {
+  const span = el("span", { class: cls });
+  span.innerHTML = markup;
+  return span;
+}
+
 function certificateView(name, score, at) {
+  const date = new Date(at).toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" });
   return el("div", { class: "certificate" }, [
+    ...["tl", "tr", "bl", "br"].map((c) => svgNode(CERT_CORNER, "cert-corner " + c)),
     el("p", { class: "cert-kicker", text: "Certificate of Completion" }),
+    el("p", { class: "cert-lead", text: "This is to certify that" }),
     el("p", { class: "cert-name", text: name }),
-    el("p", { text: "completed the Precision and Recall module and scored " + score + " of " + RETENTION.length + " on the retention quiz, taken at least five days after the lessons." }),
-    el("p", { class: "cert-skills", text: "Confusion matrix · Precision and recall · Choosing a metric by the cost of each error · Why accuracy misleads" }),
-    el("p", { class: "cert-foot", text: new Date(at).toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" }) + " · A CS6460 student project" }),
+    el("p", { class: "cert-lead", text: "has successfully completed" }),
+    el("p", { class: "cert-course", text: "Evaluating Classification Models" }),
+    svgNode(CERT_SEAL, "cert-seal"),
+    el("p", { class: "cert-foot", text: date + " · A CS6460 student project" }),
   ]);
 }
 
