@@ -21,7 +21,7 @@ revoke all on public.participants from anon, authenticated;
 insert into public.participants (email, arm, created_at)
 select distinct on (lower(email)) lower(email), arm, coalesce(consent_at, now())
 from public.sessions
-where arm in ('A', 'B') and coalesce(state->>'demo', 'false') <> 'true'
+where email is not null and arm in ('A', 'B') and coalesce(state->>'demo', 'false') <> 'true'
 order by lower(email), consent_at
 on conflict (email) do nothing;
 
