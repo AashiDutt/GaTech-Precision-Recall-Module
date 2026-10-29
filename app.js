@@ -82,7 +82,50 @@ function go(screen) {
   render();
 }
 
-function setProgress(text) { progressEl.textContent = text || ""; }
+// The bar measures the whole module as one journey: diagnostic, slides, then the
+// final quiz. The retention quiz has its own bar. Hidden before sign up.
+const progressTrack = document.getElementById("progressTrack");
+const progressFill = document.getElementById("progressFill");
+
+function progressFraction() {
+  if (R_CODE) {
+    if (!rstate) return null;
+    return rstate.result ? 1 : (rstate.index || 0) / RETENTION.length;
+  }
+  if (!state.consentAt) return null;
+  const total = DIAGNOSTIC.length + SLIDES.length + SUMMATIVE.length;
+  const slidesStart = DIAGNOSTIC.length;
+  const finalStart = slidesStart + SLIDES.length;
+  const at = {
+    diagIntro: 0,
+    diagnostic: state.diagIndex || 0,
+    report: slidesStart,
+    slides: slidesStart + (state.slideIndex || 0),
+    summIntro: finalStart,
+    end: finalStart,
+    summative: finalStart + (state.summIndex || 0),
+    summary: total,
+    next: total,
+  }[state.screen];
+  return at == null ? null : Math.min(at / total, 1);
+}
+
+function setProgress(text) {
+  progressEl.textContent = text || "";
+  const f = progressFraction();
+  progressTrack.hidden = f == null;
+  if (f == null) return;
+  const pct = Math.round(f * 100);
+  progressFill.style.width = pct + "%";
+  progressTrack.setAttribute("aria-valuenow", pct);
+}
+
+// Replays the gentle fade-in on each new screen.
+function animateIn() {
+  app.classList.remove("enter");
+  void app.offsetWidth;
+  app.classList.add("enter");
+}
 
 // ---------- confusion matrix visual ----------
 
@@ -684,7 +727,7 @@ function renderNext() {
 
   if (state.demo) {
     parts.push(
-      el("p", { class: "demo-note", text: "🧪 Demo mode: the retention quiz is open now, so you can complete the full journey in one session." }),
+      el("p", { class: "demo-note", text: "Demo mode: the retention quiz is open now, so you can complete the full journey in one session." }),
       el("a", { class: "primary button-link", href: retentionLink(), text: "Take the retention quiz now →" }),
     );
   } else {
@@ -705,7 +748,7 @@ function renderNext() {
   parts.push(
     el("h2", { class: "notice-title", text: "Your certificate" }),
     el("p", { class: "muted", text: passed
-      ? "You scored " + result.score + " of " + RETENTION.length + " on the retention quiz. ✓"
+      ? "You scored " + result.score + " of " + RETENTION.length + " on the retention quiz."
       : "Complete the retention quiz and score 6 or more to earn your certificate." }),
     cert,
   );
@@ -794,6 +837,7 @@ const SCREENS = {
 function render() {
   leaveBtn.hidden = !state.consentAt; // screens before consent and "saved" hide it again
   (SCREENS[state.screen] || renderRegister)();
+  animateIn();
   app.focus({ preventScroll: true });
   window.scrollTo(0, 0);
 }
@@ -812,6 +856,7 @@ function rSave() { try { localStorage.setItem(R_KEY, JSON.stringify(rstate)); } 
 function rShow(...nodes) {
   leaveBtn.hidden = true;
   app.replaceChildren(...nodes);
+  animateIn();
   app.focus({ preventScroll: true });
   window.scrollTo(0, 0);
 }
