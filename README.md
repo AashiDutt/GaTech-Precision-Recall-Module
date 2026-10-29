@@ -20,7 +20,11 @@ A short self-paced module on the confusion matrix, precision, recall and the acc
 | Retention quiz | 18 to 25 |
 
 ## A/B design
-Arm A gets explanatory feedback (why the chosen answer is wrong and the misconception behind it). Arm B sees whether the answer was right and the correct answer. The arm is assigned at random at consent. After passing the retention quiz, everyone sees the correct answers with explanations, since the measurement is over by then.
+Arm A gets explanatory feedback (why the chosen answer is wrong and the misconception behind it). Arm B sees whether the answer was right and the correct answer. The arm is assigned at random at consent.
+
+One arm per person: the `participants` table keeps the first arm drawn for each email, through the `claim_arm` function. Someone who signs up again on another browser or device starts fresh but stays in the same arm, and the new row is flagged `state.repeat`. Demo sign-ups skip this.
+
+Analysis rule: one row per email, the earliest row that finished the module, or the earliest row if none did. `reminders.sql` uses the same rule, so nobody gets two reminders. Known limit: `claim_arm` reveals whether an email has signed up before. After passing the retention quiz, everyone sees the correct answers with explanations, since the measurement is over by then.
 
 ## Data storage
 - Each save goes to the browser first, then to the Supabase `sessions` table (one row per learner, anonymous sign-in at consent, row level security).
@@ -29,7 +33,7 @@ Arm A gets explanatory feedback (why the chosen answer is wrong and the misconce
 - Retention answers go to the `retention` table through two database functions that need the learner's link code. Learners cannot read or change this table directly.
 
 ## Setup
-1. Supabase SQL Editor: run `setup.sql` (done in Milestone 1), then `setup-milestone2.sql`.
+1. Supabase SQL Editor: run `setup.sql` (done in Milestone 1), then `setup-milestone2.sql`, then `setup-arms.sql`.
 2. Anonymous sign-ins must be on (done in Milestone 1).
 
 ## Demo mode
@@ -54,7 +58,7 @@ Once a day during the study:
 > YOUR NAME
 
 ## Before recruiting
-- Delete all test rows: `delete from public.sessions;` (this also removes their retention rows).
+- Delete all test rows: `delete from public.sessions; delete from public.participants;` (the first also removes their retention rows).
 - Open the Supabase dashboard now and then. Free projects pause after a period of no activity.
 
 ## Files
@@ -64,7 +68,7 @@ Once a day during the study:
 - `app.js` screens and flow, including the retention quiz and certificate
 - `store.js` storage layer (browser plus Supabase)
 - `config.js` Supabase URL and publishable key
-- `setup.sql`, `setup-milestone2.sql` tables and security rules
+- `setup.sql`, `setup-milestone2.sql`, `setup-arms.sql` tables and security rules
 - `reminders.sql` who is due a reminder, and a results query
 - `styles.css` styles
 

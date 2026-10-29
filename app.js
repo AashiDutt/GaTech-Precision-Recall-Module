@@ -316,7 +316,7 @@ function renderRegister() {
     err,
     el("div", { class: "row" }, [back, btn]),
   ]);
-  form.addEventListener("submit", (e) => {
+  form.addEventListener("submit", async (e) => {
     e.preventDefault();
     if (!valid()) { err.textContent = "Please enter a valid email address."; input.focus(); return; }
     if (!box.checked) return;
@@ -326,11 +326,29 @@ function renderRegister() {
       err.textContent = "This email already has saved progress. Go back and choose Sign in.";
       return;
     }
+    let arm = Math.random() < 0.5 ? "A" : "B"; // random assignment at registration
+    let repeat = false;
+    // One arm per person: the server keeps the first arm drawn for each email, so a
+    // sign-up on another browser or device lands in the same arm. Demos skip this.
+    if (!DEMO) {
+      btn.disabled = true;
+      try {
+        const rows = await Store.rpc("claim_arm", { p_email: email, p_arm: arm });
+        if (!rows || !rows[0]) throw new Error("no arm returned");
+        arm = rows[0].arm;
+        repeat = rows[0].repeat;
+      } catch (e) {
+        err.textContent = "Could not reach the server. Check your connection and try again.";
+        btn.disabled = false;
+        return;
+      }
+    }
     state = newState();
     state.email = email;
     if (DEMO) state.demo = true;
+    if (repeat) state.repeat = true; // signed up before elsewhere; analysis uses one row per email
     state.consentAt = new Date().toISOString();
-    state.arm = Math.random() < 0.5 ? "A" : "B"; // random assignment at registration
+    state.arm = arm;
     leaveBtn.hidden = false;
     go("diagIntro");
   });
