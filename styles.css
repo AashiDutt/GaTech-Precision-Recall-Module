@@ -299,15 +299,31 @@ dialog h2 { margin-top: 0; font-size: 22px; }
 .cert-seal { display: block; width: 64px; height: 64px; margin: 22px auto 10px; color: var(--accent); }
 .cert-foot { font-size: 13px; color: var(--muted); margin: 0; letter-spacing: .04em; }
 
+/* Printing shows only the certificate, on one landscape page. Everything else is
+   removed from the layout (not just hidden), so it cannot spill onto extra pages. */
+@page { size: landscape; margin: 10mm; }
 @media print {
-  body { background: #fff; color: #000; }
-  body * { visibility: hidden; }
-  .topbar { position: static; }
-  .certificate, .certificate * { visibility: visible; }
-  .certificate { position: absolute; left: 0; right: 0; top: 40px; margin: 0 auto; max-width: 640px; color: #000; background: #fff; border-color: #5e5ce6; outline-color: #fff; box-shadow: 0 0 0 7px #5e5ce6; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  html, body { background: #fff; color: #000; margin: 0; }
+  .topbar, dialog { display: none !important; }
+  .card { max-width: none; margin: 0; padding: 0; }
+  .card.enter > * { animation: none; }
+  #app > :not(:has(.certificate)) { display: none !important; }
+  .certificate ~ * { display: none !important; }
+  .certificate {
+    display: flex; flex-direction: column; justify-content: center;
+    height: calc(100vh - 16mm); margin: 7mm; break-inside: avoid; page-break-inside: avoid;
+    color: #000; background: #fff; border-color: #5e5ce6; outline-color: #fff; box-shadow: 0 0 0 7px #5e5ce6;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
   .cert-kicker, .cert-course, .cert-corner, .cert-seal { color: #5e5ce6; }
   .cert-lead, .cert-foot { color: #444; }
-  .cert-name { border-color: #ccc; }
+  .cert-name { color: #000; border-color: #ccc; font-size: 56px; max-width: 60%; margin: 14px auto 18px; padding-bottom: 14px; }
+  .cert-kicker { font-size: 18px; margin-bottom: 32px; }
+  .cert-lead { font-size: 20px; }
+  .cert-course { font-size: 34px; margin-top: 10px; }
+  .cert-seal { width: 96px; height: 96px; margin: 36px auto 16px; }
+  .cert-foot { font-size: 16px; }
+  .cert-corner { width: 48px; height: 48px; }
 }
 
 /* ---------- small screens ---------- */
