@@ -82,42 +82,56 @@ function go(screen) {
   render();
 }
 
-// The bar measures the whole module as one journey: diagnostic, slides, then the
-// final quiz. The retention quiz has its own bar. Hidden before sign up.
-const progressTrack = document.getElementById("progressTrack");
-const progressFill = document.getElementById("progressFill");
+// Progress is shown as named stages: Diagnostic, Lessons, Final quiz. Each stage fills
+// as the learner moves through it, and finished stages turn solid. The retention quiz
+// is one stage of its own. Hidden before sign up and on screens outside the stages.
+const stepsEl = document.getElementById("steps");
 
-function progressFraction() {
+function progressStages() {
   if (R_CODE) {
     if (!rstate) return null;
-    return rstate.result ? 1 : (rstate.index || 0) / RETENTION.length;
+    const i = rstate.result ? RETENTION.length : (rstate.index || 0);
+    return [{ name: "Retention quiz", count: [Math.min(i + 1, RETENTION.length), RETENTION.length], frac: i / RETENTION.length, now: !rstate.result }];
   }
   if (!state.consentAt) return null;
-  const total = DIAGNOSTIC.length + SLIDES.length + SUMMATIVE.length;
-  const slidesStart = DIAGNOSTIC.length;
-  const finalStart = slidesStart + SLIDES.length;
-  const at = {
-    diagIntro: 0,
-    diagnostic: state.diagIndex || 0,
-    report: slidesStart,
-    slides: slidesStart + (state.slideIndex || 0),
-    summIntro: finalStart,
-    end: finalStart,
-    summative: finalStart + (state.summIndex || 0),
-    summary: total,
-    next: total,
+  const order = ["diagnostic", "lessons", "final"];
+  const where = {
+    diagIntro: ["diagnostic", 0], diagnostic: ["diagnostic", state.diagIndex || 0],
+    report: ["lessons", 0], slides: ["lessons", state.slideIndex || 0],
+    summIntro: ["final", 0], end: ["final", 0], summative: ["final", state.summIndex || 0],
+    summary: ["done", 0], next: ["done", 0],
   }[state.screen];
-  return at == null ? null : Math.min(at / total, 1);
+  if (!where) return null;
+  const [stage, i] = where;
+  const at = stage === "done" ? order.length : order.indexOf(stage);
+  const defs = [
+    { name: "Diagnostic", total: DIAGNOSTIC.length },
+    { name: "Lessons", total: SLIDES.length },
+    { name: "Final quiz", total: SUMMATIVE.length },
+  ];
+  return defs.map((d, n) => ({
+    name: d.name,
+    done: n < at,
+    now: n === at,
+    frac: n < at ? 1 : n === at ? i / d.total : 0,
+    count: n === at ? [Math.min(i + 1, d.total), d.total] : null,
+  }));
 }
 
 function setProgress(text) {
   progressEl.textContent = text || "";
-  const f = progressFraction();
-  progressTrack.hidden = f == null;
-  if (f == null) return;
-  const pct = Math.round(f * 100);
-  progressFill.style.width = pct + "%";
-  progressTrack.setAttribute("aria-valuenow", pct);
+  const stages = progressStages();
+  stepsEl.hidden = !stages;
+  progressEl.hidden = !!stages; // the stage label carries the count instead
+  if (!stages) return;
+  stepsEl.replaceChildren(...stages.map((s) => {
+    const label = s.name + (s.count ? " · " + s.count[0] + " of " + s.count[1] : "");
+    const fill = el("span", { style: "width:" + Math.round(s.frac * 100) + "%" });
+    return el("div", { class: "step" + (s.done ? " done" : "") + (s.now ? " now" : ""), "aria-current": s.now ? "step" : null }, [
+      el("div", { class: "step-line", role: "progressbar", "aria-label": s.name, "aria-valuemin": 0, "aria-valuemax": 100, "aria-valuenow": Math.round(s.frac * 100) }, [fill]),
+      el("div", { class: "step-name", text: s.done ? s.name + " ✓" : label }),
+    ]);
+  }));
 }
 
 // Replays the gentle fade-in on each new screen.
