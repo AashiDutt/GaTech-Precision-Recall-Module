@@ -76,15 +76,15 @@ function vizTwoMistakes() {
 
 // Slides 9 and 14: precision reads the column, recall reads the row.
 function vizReadMatrix(v) {
-  const half = (caption, highlight, value) => el("figure", { class: "viz-half" }, [
-    matrixView({ values: MATRIX, highlight, compact: true }),
-    el("figcaption", {}, [el("strong", { text: caption[0] }), " " + caption[1], el("span", { class: "viz-value", text: value })]),
+  const half = (caption, highlight, tone, value) => el("figure", { class: "viz-half" }, [
+    matrixView({ values: MATRIX, highlight, tone, compact: true }),
+    el("figcaption", {}, [el("strong", { class: "word-" + tone, text: caption[0] }), " " + caption[1], el("span", { class: "viz-value word-" + tone, text: value })]),
   ]);
   const p = v.captions ? v.captions[0] : ["Precision", "looks down the \"predicted fraud\" column. Of the flags, how many were right?"];
   const r = v.captions ? v.captions[1] : ["Recall", "looks across the \"actually fraud\" row. Of the real fraud, how much was caught?"];
   return el("div", { class: "viz-pair" }, [
-    half(p, ["tp", "fp"], "40 / 50 = 0.80"),
-    half(r, ["tp", "fn"], "40 / 60 = 0.67"),
+    half(p, ["tp", "fp"], "precision", "Precision 40 / 50 = 0.80"),
+    half(r, ["tp", "fn"], "recall", "Recall 40 / 60 = 0.67"),
   ]);
 }
 
@@ -104,8 +104,8 @@ function vizTradeoff() {
     id: "tradeoff", "aria-label": "How many cases the model flags",
   });
   const out = el("div");
-  const bar = (name, value) => el("div", { class: "viz-bar" }, [
-    el("span", { class: "viz-bar-name", text: name }),
+  const bar = (name, value) => el("div", { class: "viz-bar tone-" + name.toLowerCase() }, [
+    el("span", { class: "viz-bar-name word-" + name.toLowerCase(), text: name }),
     el("span", { class: "viz-bar-track" }, [el("span", { class: "viz-bar-fill", style: `width:${Math.round(value * 100)}%` })]),
     el("span", { class: "viz-bar-num", text: value.toFixed(2) }),
   ]);
@@ -115,7 +115,11 @@ function vizTradeoff() {
     const precision = v.tp / (v.tp + v.fp);
     const recall = v.tp / (v.tp + v.fn);
     out.replaceChildren(
-      matrixView({ values: v, highlight: ["fn", "fp"], compact: true }),
+      matrixView({ values: v, highlight: { fp: "precision", fn: "recall" }, compact: true }),
+      el("p", { class: "viz-legend" }, [
+        el("span", { class: "legend-item" }, [el("span", { class: "key tone-precision" }), "False alarms pull precision down"]),
+        el("span", { class: "legend-item" }, [el("span", { class: "key tone-recall" }), "Missed fraud pulls recall down"]),
+      ]),
       el("div", { class: "viz-bars" }, [bar("Precision", precision), bar("Recall", recall)]),
       el("p", { class: "viz-note", text: i === 2 ? "This is the model you have seen so far." : (i < 2 ? "Fewer flags: fewer false alarms, more missed fraud." : "More flags: more fraud caught, more false alarms.") }),
     );
@@ -141,7 +145,7 @@ function vizQueues() {
     }
     return el("div", { class: "viz-card" }, [
       el("p", { class: "viz-card-title", text: title }),
-      el("p", { class: "viz-card-sub", text: sub }),
+      el("p", { class: "viz-card-sub" }, conceptWords(sub)),
       svgRoot(236, 116, title + ": " + sub, cells),
     ]);
   };
@@ -152,13 +156,13 @@ function vizQueues() {
     ]),
     el("figcaption", { class: "viz-legend" }, [
       el("span", { class: "legend-item" }, [el("span", { class: "key pos" }), "Real fraud"]),
-      el("span", { class: "legend-item" }, [el("span", { class: "key neg" }), "Normal purchase, a wasted review"]),
+      el("span", { class: "legend-item" }, [el("span", { class: "key neg" }), "Normal payment, a wasted review"]),
     ]),
   ]);
 }
 
 // Slide 12: weigh the two errors. The heavier side picks the metric.
-function vizScales() {
+function vizScales(v) {
   const scale = (heavyLeft) => {
     const tilt = heavyLeft ? 14 : -14;
     const lx = 40, rx = 200, ly = 40 + tilt, ry = 40 - tilt;
@@ -167,20 +171,116 @@ function vizScales() {
       svg("line", { x1: lx, y1: ly, x2: rx, y2: ry, class: "v-beam" }),
       svg("line", { x1: lx, y1: ly, x2: lx, y2: ly + 22, class: "v-beam thin" }),
       svg("line", { x1: rx, y1: ry, x2: rx, y2: ry + 22, class: "v-beam thin" }),
-      svg("rect", { x: lx - 34, y: ly + 22, width: 68, height: heavyLeft ? 30 : 16, rx: 4, class: heavyLeft ? "v-weight heavy" : "v-weight" }),
-      svg("rect", { x: rx - 34, y: ry + 22, width: 68, height: heavyLeft ? 16 : 30, rx: 4, class: heavyLeft ? "v-weight" : "v-weight heavy" }),
+      svg("rect", { x: lx - 34, y: ly + 22, width: 68, height: heavyLeft ? 30 : 16, rx: 4, class: heavyLeft ? "v-weight heavy-precision" : "v-weight" }),
+      svg("rect", { x: rx - 34, y: ry + 22, width: 68, height: heavyLeft ? 16 : 30, rx: 4, class: heavyLeft ? "v-weight" : "v-weight heavy-recall" }),
       svg("text", { x: lx, y: 16, class: "v-label small", "text-anchor": "middle" }, "False alarm"),
       svg("text", { x: rx, y: 16, class: "v-label small", "text-anchor": "middle" }, "Missed case"),
     ]);
   };
-  const card = (heavyLeft, title, sub) => el("div", { class: "viz-card" }, [
+  const card = (heavyLeft, title, sub) => el("div", { class: "viz-card tone-card-" + (heavyLeft ? "precision" : "recall") }, [
     scale(heavyLeft),
-    el("p", { class: "viz-card-title", text: title }),
+    el("p", { class: "viz-card-title word-" + (heavyLeft ? "precision" : "recall"), text: title }),
     el("p", { class: "viz-card-sub", text: sub }),
   ]);
+  if (v && v.only === "recall") {
+    return el("div", { class: "viz-pair single" }, [card(false, "Favour recall", "A missed cancer outweighs an extra test")]);
+  }
   return el("div", { class: "viz-pair" }, [
-    card(true, "Favor precision", "False alarms cost more"),
-    card(false, "Favor recall", "Misses cost more"),
+    card(true, "Favour precision", "False alarms cost more"),
+    card(false, "Favour recall", "Misses cost more"),
+  ]);
+}
+
+// Slide 2: the four outcomes as a 2 by 2 grid, in plain words.
+function vizOutcomes() {
+  const cell = (ok, name, short, desc) => el("div", { class: "outcome " + (ok ? "ok" : "bad") }, [
+    el("span", { class: "outcome-mark", "aria-hidden": "true", text: ok ? "✓" : "✕" }),
+    el("p", { class: "outcome-name", text: name }),
+    el("p", { class: "outcome-short", text: short }),
+    el("p", { class: "outcome-desc", text: desc }),
+  ]);
+  return el("div", { class: "outcomes", role: "table", "aria-label": "The four outcomes" }, [
+    el("span", {}),
+    el("span", { class: "outcomes-head", text: "Model says fraud" }),
+    el("span", { class: "outcomes-head", text: "Model says not fraud" }),
+    el("span", { class: "outcomes-side", text: "Really fraud" }),
+    cell(true, "Caught it", "True positive", "Fraud, and the model flagged it."),
+    cell(false, "Missed it", "False negative", "Fraud, but the model let it through."),
+    el("span", { class: "outcomes-side", text: "Really not fraud" }),
+    cell(false, "False alarm", "False positive", "A normal payment the model flagged."),
+    cell(true, "Correctly ignored", "True negative", "A normal payment the model left alone."),
+  ]);
+}
+
+// Slide 6: 100 payments, 6 of them fraud. The model says "not fraud" to all of them.
+function vizDotTrap() {
+  const dots = [];
+  const fraudAt = [12, 27, 44, 58, 71, 93];
+  for (let i = 0; i < 100; i++) {
+    const x = 14 + (i % 20) * 22, y = 14 + Math.floor(i / 20) * 22;
+    const fraud = fraudAt.includes(i);
+    dots.push(svg("circle", { cx: x, cy: y, r: 8, class: fraud ? "v-dot-fraud" : "v-dot-ok" }));
+    if (fraud) dots.push(svg("path", { d: `M${x - 4},${y - 4} L${x + 4},${y + 4} M${x + 4},${y - 4} L${x - 4},${y + 4}`, class: "v-dot-miss" }));
+  }
+  const stat = (tone, label, value, sub) => el("div", { class: "stat tone-card-" + tone }, [
+    el("span", { class: "stat-label word-" + tone, text: label }),
+    el("span", { class: "stat-value", text: value }),
+    el("span", { class: "stat-sub", text: sub }),
+  ]);
+  return el("figure", { class: "viz-fig viz-panel" }, [
+    el("p", { class: "viz-panel-title", text: "100 payments. The model says \"not fraud\" to every one." }),
+    svgRoot(446, 112, "100 payments, 6 of them fraud, all labelled not fraud", dots),
+    el("div", { class: "stats" }, [
+      stat("accuracy", "Accuracy", "94%", "94 of 100 answers right"),
+      stat("recall", "Recall", "0%", "0 of 6 fraud cases caught"),
+    ]),
+    el("figcaption", { class: "viz-legend" }, [
+      el("span", { class: "legend-item" }, [el("span", { class: "key neg" }), "Normal payment"]),
+      el("span", { class: "legend-item" }, [el("span", { class: "key pos" }), "Fraud, missed"]),
+    ]),
+  ]);
+}
+
+// Slides 7 and 8: the cells a metric uses, then the same numbers as a row of squares.
+function vizMetric(v) {
+  const isP = v.metric === "precision";
+  const total = isP ? 50 : 60, good = 40;
+  const squares = [];
+  for (let i = 0; i < total; i++) {
+    const col = i % 20, row = Math.floor(i / 20);
+    squares.push(svg("rect", { x: col * 22, y: row * 22, width: 18, height: 18, rx: 3, class: i < good ? "v-sq-" + v.metric : "v-sq-off" }));
+  }
+  return el("figure", { class: "viz-fig viz-panel" }, [
+    matrixView({ values: MATRIX, highlight: isP ? ["tp", "fp"] : ["tp", "fn"], tone: v.metric, compact: true }),
+    el("p", { class: "viz-panel-title", text: isP ? "The 50 payments the model flagged:" : "The 60 payments that really were fraud:" }),
+    svgRoot(438, Math.ceil(total / 20) * 22, isP ? "40 of 50 flags were real fraud" : "40 of 60 fraud cases were caught", squares),
+    el("figcaption", { class: "viz-legend" }, [
+      el("span", { class: "legend-item" }, [el("span", { class: "key tone-" + v.metric }), isP ? "40 real fraud" : "40 caught"]),
+      el("span", { class: "legend-item" }, [el("span", { class: "key off" }), isP ? "10 false alarms" : "20 missed"]),
+    ]),
+  ]);
+}
+
+// Slide 15: the whole module in one picture.
+function vizSummary() {
+  const card = (tone, name, question, when) => el("div", { class: "sum-card tone-card-" + tone }, [
+    el("p", { class: "sum-name word-" + tone, text: name }),
+    el("p", { class: "sum-q", text: question }),
+    el("p", { class: "sum-when", text: when }),
+  ]);
+  return el("figure", { class: "viz-fig summary-viz" }, [
+    el("div", { class: "summary-matrix" }, [
+      matrixView({ values: MATRIX, labels: true, highlight: { tp: "both", fp: "precision", fn: "recall" }, compact: true }),
+      el("p", { class: "viz-legend" }, [
+        el("span", { class: "legend-item" }, [el("span", { class: "key tone-precision" }), "Precision reads the column"]),
+        el("span", { class: "legend-item" }, [el("span", { class: "key tone-recall" }), "Recall reads the row"]),
+      ]),
+    ]),
+    el("div", { class: "sum-cards" }, [
+      card("accuracy", "Accuracy", "Of all answers, how many were right?", "Watch out: it looks great when the thing you look for is rare."),
+      card("precision", "Precision", "Of the flags, how many were right?", "Use it when false alarms cost more."),
+      card("recall", "Recall", "Of the real cases, how many were caught?", "Use it when misses cost more."),
+    ]),
   ]);
 }
 
@@ -191,7 +291,11 @@ function vizCustom(v) {
     case "readMatrix": return vizReadMatrix(v);
     case "tradeoff": return vizTradeoff();
     case "queues": return vizQueues();
-    case "scales": return vizScales();
+    case "scales": return vizScales(v);
+    case "outcomes": return vizOutcomes();
+    case "dotTrap": return vizDotTrap();
+    case "metric": return vizMetric(v);
+    case "summary": return vizSummary();
     default: return null;
   }
 }
