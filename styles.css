@@ -394,15 +394,7 @@ input.link-box { font: 14px ui-monospace, SFMono-Regular, Menlo, monospace; back
 .sum-q { font-weight: 600; font-size: 15px; margin-bottom: var(--space-2) !important; }
 .sum-when { font-size: 14px; color: var(--muted); }
 
-/* ---------- end page: journey, retention banner ---------- */
-.journey { display: flex; gap: var(--space-2); list-style: none; padding: 0; margin: 0 0 var(--space-6); flex-wrap: wrap; }
-.journey-step { display: inline-flex; align-items: center; gap: var(--space-2); font-size: 14px; color: var(--muted); padding: 6px 12px 6px 6px; border-radius: var(--radius-pill); background: var(--surface); }
-.journey-dot { width: 22px; height: 22px; border-radius: 50%; display: grid; place-content: center; font-size: 12px; font-weight: 700; border: 1.5px solid var(--line); }
-.journey-step.done { color: var(--ink); }
-.journey-step.done .journey-dot { background: var(--ink); border-color: var(--ink); color: var(--bg); }
-.journey-step.now { color: var(--accent); font-weight: 600; background: var(--predict); }
-.journey-step.now .journey-dot { border-color: var(--accent); background: var(--accent); box-shadow: inset 0 0 0 4px var(--predict); }
-
+/* ---------- end page: retention banner ---------- */
 .retention-hero {
   display: grid; grid-template-columns: auto 1fr; gap: var(--space-6); align-items: start;
   padding: var(--space-8); border-radius: var(--radius-lg);
@@ -434,6 +426,17 @@ input.link-box { font: 14px ui-monospace, SFMono-Regular, Menlo, monospace; back
 .day-chip[aria-checked="true"] { border-color: var(--accent); background: var(--accent); color: var(--accent-ink); }
 .chip-weekday { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; opacity: .8; }
 .chip-date { font-size: 16px; font-weight: 700; }
+.done-badge {
+  width: 88px; height: 88px; border-radius: 50%; display: grid; place-content: center;
+  background: var(--ok); color: var(--bg); font: 700 44px/1 var(--font-display);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--ok) 30%, transparent);
+}
+.retention-hero.is-done { background: linear-gradient(160deg, var(--ok-bg), color-mix(in srgb, var(--ok-bg) 40%, var(--bg))); border-color: color-mix(in srgb, var(--ok) 40%, transparent); }
+.locked-cert { margin-top: var(--space-6); padding: var(--space-4) var(--space-5); border: 1.5px dashed var(--line); border-radius: var(--radius-md); }
+.locked-cert p { margin: 0; }
+.locked-title { font-weight: 600; margin-bottom: var(--space-1) !important; }
+.locked-title::before { content: "🔒 "; }
+.certificate.is-empty .cert-name { color: var(--muted); font-style: italic; }
 .link-details { margin-top: var(--space-4); font-size: 15px; }
 .link-details summary { cursor: pointer; color: var(--accent); font-weight: 500; }
 .link-details .link-box { margin-top: var(--space-2); }
