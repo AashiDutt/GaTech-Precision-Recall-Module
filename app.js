@@ -1114,7 +1114,9 @@ function renderRetentionResult() {
     const right = item.options.filter((o) => o.correct);
     const box = el("div", { class: "feedback " + (a.correct ? "ok" : "bad") }, [
       el("p", { class: "verdict", text: a.correct ? "Correct." : "Not quite." }),
-      el("p", { class: "answer", text: "The correct answer is: " + right.map((o) => o.text).join(" and ") + "." }),
+      el("p", { class: "answer", text: a.correct
+        ? "Your answer: " + item.options.filter((o) => a.chosen.includes(o.key)).map((o) => o.text).join(" and ") + "."
+        : "The correct answer is: " + right.map((o) => o.text).join(" and ") + "." }),
       ...right.map((o) => el("p", { text: o.explain })),
     ]);
     review.append(el("h3", { text: "Question " + (n + 1) }), el("p", { class: "stem", text: item.stem }), box);
@@ -1127,19 +1129,21 @@ function renderRetentionResult() {
     // The certificate updates as the learner types. Printing needs a name.
     const name = el("input", { type: "text", id: "cert-name", placeholder: "Your name", autocomplete: "name" });
     const holder = el("div");
-    const print = el("button", { class: "primary", text: "Print or save as PDF", disabled: true, onclick: () => window.print() });
+    const print = el("button", { class: "primary", text: "Print or save as PDF", disabled: true, onclick: () => window.print(), "aria-describedby": "print-hint" });
+    const hint = el("p", { class: "muted print-hint", id: "print-hint", text: "Type your name above to print." });
     const draw = () => {
       const v = name.value.trim();
       holder.replaceChildren(certificateView(v || "Your name", score, at));
       holder.firstChild.classList.toggle("is-empty", !v);
       print.disabled = !v;
+      hint.hidden = !!v;
     };
     name.addEventListener("input", draw);
     draw();
     parts.push(
       el("p", { text: "You remembered the key ideas after a break, so you have earned your certificate." }),
       el("label", { for: "cert-name", text: "Your name, as it should appear (not saved)" }),
-      name, holder, print,
+      name, holder, print, hint,
     );
     parts.push(el("h2", { class: "notice-title", text: "Your answers" }), review);
   } else {
@@ -1187,7 +1191,10 @@ function certificateView(name, score, at) {
     el("p", { class: "cert-lead", text: "This is to certify that" }),
     el("p", { class: "cert-name", text: name }),
     el("p", { class: "cert-lead", text: "has successfully completed" }),
-    el("p", { class: "cert-course", text: "Evaluating Classification Models" }),
+    el("p", { class: "cert-course" }, [
+      el("span", { class: "cert-course-pre", text: "Precision and Recall:" }),
+      " Evaluating Classification Models",
+    ]),
     svgNode(CERT_SEAL, "cert-seal"),
     el("p", { class: "cert-foot", text: date + " · A CS6460 student project" }),
   ]);
