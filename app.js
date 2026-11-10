@@ -87,12 +87,28 @@ function go(screen) {
 // is one stage of its own. Hidden before sign up and on screens outside the stages.
 const stepsEl = document.getElementById("steps");
 
+// After the module, the same three stages show on the end page and on the retention
+// quiz pages: Module, Retention quiz, Certificate.
+function afterStages(r) {
+  const passed = !!(r && r.result && r.result.passed);
+  const inQuiz = r && !r.result && typeof r.index === "number";
+  const i = inQuiz ? r.index : 0;
+  return [
+    { name: "Module", done: true, frac: 1 },
+    { name: "Retention quiz", done: passed, now: !passed, frac: passed ? 1 : i / RETENTION.length,
+      count: inQuiz ? [Math.min(i + 1, RETENTION.length), RETENTION.length] : null },
+    { name: "Certificate", done: false, now: passed, frac: 0 },
+  ];
+}
+
+// The retention attempt saved on this device for the current learner, if any.
+function localRetention() {
+  try { return JSON.parse(localStorage.getItem("pr-retention-" + state.retentionCode)); } catch (e) { return null; }
+}
+
 function progressStages() {
-  if (R_CODE) {
-    if (!rstate) return null;
-    const i = rstate.result ? RETENTION.length : (rstate.index || 0);
-    return [{ name: "Retention quiz", count: [Math.min(i + 1, RETENTION.length), RETENTION.length], frac: i / RETENTION.length, now: !rstate.result }];
-  }
+  if (R_CODE) return rstate ? afterStages(rstate) : null;
+  if (state.screen === "next") return afterStages(localRetention());
   if (!state.consentAt) return null;
   const order = ["diagnostic", "lessons", "final"];
   const where = {
@@ -786,9 +802,9 @@ function renderNext() {
   const opens = new Date(new Date(state.completedAt).getTime() + days * 864e5);
   const isOpen = Date.now() >= opens.getTime();
 
-  let result = null;
-  try { result = (JSON.parse(localStorage.getItem("pr-retention-" + state.retentionCode)) || {}).result || null; } catch (e) {}
+  const result = (localRetention() || {}).result || null;
   const passed = !!(result && result.passed);
+  const failed = !!(result && !result.passed);
 
   let plan = state.retentionPlan ? new Date(state.retentionPlan) : opens;
   if (isNaN(plan) || plan < opens) plan = opens;
@@ -815,8 +831,17 @@ function renderNext() {
 
   const body = [];
   if (passed) {
-    body.push(el("p", { class: "hero-title", text: "Retention quiz done" }),
-      el("p", { class: "hero-sub", text: "You scored " + result.score + " of " + RETENTION.length + ". Your certificate is ready below." }));
+    body.push(
+      el("p", { class: "hero-title", text: "You passed the retention quiz" }),
+      el("p", { class: "hero-sub", text: "You scored " + result.score + " of " + RETENTION.length + ". Your certificate is ready." }),
+      el("a", { class: "primary button-link hero-cta", href: retentionLink(), text: "Get your certificate →" }),
+    );
+  } else if (failed) {
+    body.push(
+      el("p", { class: "hero-title", text: "You scored " + result.score + " of " + RETENTION.length }),
+      el("p", { class: "hero-sub", text: "The certificate needs " + RETENTION_PASS + " of " + RETENTION.length + ". You can try again as many times as you like." }),
+      el("a", { class: "primary button-link hero-cta", href: retentionLink(), text: "Try the retention quiz again →" }),
+    );
   } else if (isOpen) {
     body.push(
       el("p", { class: "hero-title", text: "Your retention quiz is open" }),
@@ -855,47 +880,35 @@ function renderNext() {
     );
   }
 
+  // A tick badge once passed; otherwise a calendar tile with the planned day (or today).
+  const badge = el("div", { class: "done-badge", "aria-hidden": "true", text: "✓" });
   const hero = el("section", { class: "retention-hero" + (isOpen && !passed ? " is-open" : "") + (passed ? " is-done" : ""), "aria-label": "Retention quiz" }, [
-    tile,
+    passed ? badge : tile,
     el("div", { class: "hero-body" }, body.filter(Boolean)),
   ]);
   showPlan();
-  if (isOpen || passed) {
-    const day = passed ? new Date(result.at) : new Date();
-    tileMonth.textContent = day.toLocaleDateString(undefined, { month: "short" });
-    tileDay.textContent = day.getDate();
-    tileWeekday.textContent = passed ? "Done" : "Today";
+  if (isOpen && !passed) {
+    const today = new Date();
+    tileMonth.textContent = today.toLocaleDateString(undefined, { month: "short" });
+    tileDay.textContent = today.getDate();
+    tileWeekday.textContent = "Today";
   }
 
-  // Where they are in the journey: lessons, retention quiz, certificate.
-  const step = (label, status) => el("li", { class: "journey-step " + status }, [
-    el("span", { class: "journey-dot", text: status === "done" ? "✓" : "" }), el("span", { text: label }),
-  ]);
-  const journey = el("ol", { class: "journey", "aria-label": "Your progress" }, [
-    step("Lessons and final quiz", "done"),
-    step("Retention quiz", passed ? "done" : "now"),
-    step("Certificate", passed ? "now" : "locked"),
-  ]);
-
-  const cert = passed
-    ? el("a", { class: "primary button-link", href: retentionLink(), text: "Get your certificate" })
-    : el("button", { class: "primary", disabled: true, title: "Complete the retention quiz to unlock", text: "Get your certificate" });
-
-  app.replaceChildren(
-    el("h1", { text: passed ? "Well done" : "One last step" }),
-    journey,
-    hero,
-    el("details", { class: "link-details" }, [
-      el("summary", { text: "Your personal quiz link" }),
-      el("p", { class: "muted", text: "Save it to open the quiz on any device." }),
-      link,
-    ]),
-    el("h2", { class: "notice-title", text: "Your certificate" }),
-    el("p", { class: "muted", text: passed
-      ? "Your certificate is unlocked."
-      : "It unlocks when you score 6 or more on the retention quiz." }),
-    cert,
-  );
+  const parts = [el("h1", { text: passed ? "Well done" : "One last step" }), hero];
+  if (!passed) {
+    parts.push(
+      el("details", { class: "link-details" }, [
+        el("summary", { text: "Your personal quiz link" }),
+        el("p", { class: "muted", text: "Save it to open the quiz on any device." }),
+        link,
+      ]),
+      el("div", { class: "locked-cert" }, [
+        el("p", { class: "locked-title", text: "Your certificate" }),
+        el("p", { class: "muted", text: "Unlocks when you score " + RETENTION_PASS + " or more on the retention quiz." }),
+      ]),
+    );
+  }
+  app.replaceChildren(...parts);
 }
 
 // Shown after "Leave for now", and whenever someone reopens the page mid-session.
@@ -959,6 +972,8 @@ document.addEventListener("visibilitychange", () => {
 
 // ---------- router ----------
 
+const IN_PROGRESS = ["diagIntro", "diagnostic", "report", "slides", "end", "summIntro", "summative"];
+
 const SCREENS = {
   landing: renderLanding,
   register: renderRegister,
@@ -977,7 +992,8 @@ const SCREENS = {
 };
 
 function render() {
-  leaveBtn.hidden = !state.consentAt; // screens before consent and "saved" hide it again
+  // "Leave for now" only while there is unfinished work to come back to.
+  leaveBtn.hidden = !(state.consentAt && IN_PROGRESS.includes(state.screen));
   (SCREENS[state.screen] || renderRegister)();
   animateIn();
   app.focus({ preventScroll: true });
@@ -1091,7 +1107,7 @@ async function submitRetention() {
 
 function renderRetentionResult() {
   const { score, passed, at } = rstate.result;
-  setProgress("Retention quiz");
+  setProgress("");
   const review = el("div", { class: "review" });
   rstate.answers.forEach((a, n) => {
     const item = ITEMS[a.itemId];
@@ -1105,20 +1121,25 @@ function renderRetentionResult() {
   });
 
   const parts = [
-    el("h1", { text: "You scored " + score + " of " + RETENTION.length }),
+    el("h1", { text: passed ? "You passed: " + score + " of " + RETENTION.length : "You scored " + score + " of " + RETENTION.length }),
   ];
   if (passed) {
+    // The certificate updates as the learner types. Printing needs a name.
     const name = el("input", { type: "text", id: "cert-name", placeholder: "Your name", autocomplete: "name" });
     const holder = el("div");
-    const make = el("button", { class: "primary", text: "Show my certificate" });
-    make.addEventListener("click", () => {
-      holder.replaceChildren(certificateView(name.value.trim() || "Learner", score, at),
-        el("button", { class: "primary", text: "Print or save as PDF", onclick: () => window.print() }));
-    });
+    const print = el("button", { class: "primary", text: "Print or save as PDF", disabled: true, onclick: () => window.print() });
+    const draw = () => {
+      const v = name.value.trim();
+      holder.replaceChildren(certificateView(v || "Your name", score, at));
+      holder.firstChild.classList.toggle("is-empty", !v);
+      print.disabled = !v;
+    };
+    name.addEventListener("input", draw);
+    draw();
     parts.push(
-      el("p", { text: "Well done. You remembered the key ideas five days later, so you have earned the certificate." }),
-      el("label", { for: "cert-name", text: "Name to print on the certificate (not saved)" }),
-      name, make, holder,
+      el("p", { text: "You remembered the key ideas after a break, so you have earned your certificate." }),
+      el("label", { for: "cert-name", text: "Your name, as it should appear (not saved)" }),
+      name, holder, print,
     );
     parts.push(el("h2", { class: "notice-title", text: "Your answers" }), review);
   } else {
