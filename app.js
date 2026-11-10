@@ -141,15 +141,43 @@ function animateIn() {
   app.classList.add("enter");
 }
 
+// ---------- light / dark toggle ----------
+// Auto follows the device. The choice is kept in this browser only.
+const THEMES = ["auto", "light", "dark"];
+const themeBtn = document.getElementById("themeBtn");
+
+function applyTheme(t) {
+  if (t === "auto") delete document.documentElement.dataset.theme;
+  else document.documentElement.dataset.theme = t;
+  themeBtn.dataset.mode = t;
+  themeBtn.setAttribute("aria-label", "Colour theme: " + t + ". Click to change.");
+  themeBtn.title = "Theme: " + t[0].toUpperCase() + t.slice(1);
+  themeBtn.querySelector(".theme-label").textContent = t[0].toUpperCase() + t.slice(1);
+}
+
+themeBtn.addEventListener("click", () => {
+  const next = THEMES[(THEMES.indexOf(themeBtn.dataset.mode || "auto") + 1) % THEMES.length];
+  try { localStorage.setItem("pr-theme", next); } catch (e) {}
+  applyTheme(next);
+});
+
+let savedTheme = "auto";
+try { savedTheme = localStorage.getItem("pr-theme") || "auto"; } catch (e) {}
+applyTheme(THEMES.includes(savedTheme) ? savedTheme : "auto");
+
 // ---------- confusion matrix visual ----------
 
-function matrixView({ values, labels, highlight = [], positive = "fraud", compact = false }) {
+// highlight: a list of cells shaded with one tone, or a map of cell -> tone.
+// Tones: "hl" (default yellow), "accuracy", "precision", "recall", "both".
+function matrixView({ values, labels, highlight = [], tone = "hl", positive = "fraud", compact = false }) {
+  const toneOf = (key) => Array.isArray(highlight) ? (highlight.includes(key) ? tone : null) : highlight[key] || null;
   const cell = (key, name) => {
     const v = values ? values[key] : null;
     const content = [];
     if (labels || !values) content.push(el("span", { class: "cell-name", text: name }));
     if (values) content.push(el("span", { class: "cell-value", text: String(v) }));
-    return el("td", { class: "cell " + key + (highlight.includes(key) ? " hl" : "") }, content);
+    const t = toneOf(key);
+    return el("td", { class: "cell " + key + (t ? " hl tone-" + t : "") }, content);
   };
   const neg = "not " + positive;
   return el("table", { class: "matrix" + (compact ? " compact" : ""), "aria-label": "Confusion matrix" }, [
@@ -540,7 +568,10 @@ function renderSlides() {
   if (state.slidePhase === "checkFeedback") return renderCheckFeedback(slide.check);
 
   startSegment("slide-" + (idx + 1));
-  const parts = [el("h1", { text: slide.title })];
+  const parts = [
+    slide.concept ? el("p", { class: "concept concept-" + slide.concept, text: CONCEPTS[slide.concept] }) : null,
+    el("h1", { text: slide.title }),
+  ].filter(Boolean);
 
   // Predict first: on a first visit the learner commits before the text appears.
   if (slide.predict && !state.revealed) {
@@ -572,8 +603,11 @@ function renderSlides() {
     const p = [...state.predictions].reverse().find((x) => x.slide === idx + 1);
     if (p) parts.push(el("p", { class: "muted", text: "Your prediction: " + p.choice }));
   }
+  if (slide.intro) parts.push(el("p", { class: "slide-text" }, conceptWords(slide.intro)));
   parts.push(visualView(slide.visual));
-  slide.text.forEach((t) => parts.push(el("p", { class: "slide-text", text: t })));
+  if (slide.points) parts.push(el("ul", { class: "points" }, slide.points.map((t) => el("li", {}, conceptWords(t)))));
+  if (slide.formula) parts.push(formulaView(slide.formula));
+  if (slide.terms) parts.push(termsView(slide.terms));
 
   const pendingCheck = slide.check && !state.checksDone.includes(idx);
   const last = idx === SLIDES.length - 1;
@@ -582,6 +616,29 @@ function renderSlides() {
     forwardLabel: pendingCheck ? "Check your understanding" : (last ? "Finish" : "Next"),
   }));
   app.replaceChildren(...parts);
+}
+
+// Colours the words accuracy, precision and recall in slide text, so each concept
+// keeps one colour everywhere. Slides only: quiz questions stay uncoloured.
+function conceptWords(text) {
+  return text.split(/\b(accuracy|precision|recall)\b/i).map((part, i) =>
+    i % 2 ? el("span", { class: "word-" + part.toLowerCase(), text: part }) : part);
+}
+
+function formulaView(f) {
+  return el("p", { class: "formula" }, [
+    el("span", { class: "word-" + f.metric.toLowerCase(), text: f.metric }),
+    " = " + f.expr + " = ",
+    el("strong", { text: f.value }),
+  ]);
+}
+
+// Plain-language definitions of the jargon used on this slide.
+function termsView(keys) {
+  return el("details", { class: "terms", open: true }, [
+    el("summary", { text: "Key terms" }),
+    el("dl", {}, keys.flatMap((k) => [el("dt", { text: TERMS[k][0] }), el("dd", { text: TERMS[k][1] })])),
+  ]);
 }
 
 function renderCheck(itemId) {
@@ -698,7 +755,7 @@ function renderSummary() {
     review.appendChild(feedbackView(r.itemId, r.chosen, r.correct));
   });
 
-  const btn = el("button", { class: "primary", text: "Continue →", onclick: () => go("next") });
+  const btn = el("button", { class: "primary", text: "Next: your retention quiz →", onclick: () => go("next") });
   app.replaceChildren(
     el("h1", { text: "You scored " + right + " of " + latest.length + " on the final quiz" }),
     review,
@@ -719,14 +776,34 @@ function calendarLink(opens) {
 }
 
 // Page 2: what happens next, and the certificate once the retention quiz is passed.
+// The retention quiz gets a large banner with a calendar tile, so it is hard to miss.
+// Learners pick the day they will take it (implementation intention); the calendar
+// event follows that choice. The reminder email still goes out on opening day.
 function renderNext() {
   endSegment();
   setProgress("Done");
   const days = state.demo ? 0 : RETENTION_DAYS;
   const opens = new Date(new Date(state.completedAt).getTime() + days * 864e5);
+  const isOpen = Date.now() >= opens.getTime();
 
   let result = null;
   try { result = (JSON.parse(localStorage.getItem("pr-retention-" + state.retentionCode)) || {}).result || null; } catch (e) {}
+  const passed = !!(result && result.passed);
+
+  let plan = state.retentionPlan ? new Date(state.retentionPlan) : opens;
+  if (isNaN(plan) || plan < opens) plan = opens;
+
+  const tileMonth = el("span", { class: "tile-month" });
+  const tileDay = el("span", { class: "tile-day" });
+  const tileWeekday = el("span", { class: "tile-weekday" });
+  const tile = el("div", { class: "cal-tile", "aria-hidden": "true" }, [tileMonth, tileDay, tileWeekday]);
+  const cal = el("a", { class: "primary button-link", target: "_blank", rel: "noopener", text: "Add to my calendar" });
+  const showPlan = () => {
+    tileMonth.textContent = plan.toLocaleDateString(undefined, { month: "short" });
+    tileDay.textContent = plan.getDate();
+    tileWeekday.textContent = plan.toLocaleDateString(undefined, { weekday: "long" });
+    cal.href = calendarLink(plan);
+  };
 
   const link = el("input", { type: "text", class: "link-box", readonly: true, value: retentionLink(), "aria-label": "Your retention quiz link" });
   link.addEventListener("focus", () => link.select());
@@ -735,39 +812,90 @@ function renderNext() {
     try { await navigator.clipboard.writeText(retentionLink()); copy.textContent = "Copied"; }
     catch (e) { link.focus(); link.select(); }
   });
-  const cal = el("a", { class: "secondary button-link", href: calendarLink(opens), target: "_blank", rel: "noopener", text: "Add to calendar" });
 
-  const parts = [el("h1", { text: "One last step: the retention quiz" })];
-
-  if (state.demo) {
-    parts.push(
-      el("p", { class: "demo-note", text: "Demo mode: the retention quiz is open now, so you can complete the full journey in one session." }),
-      el("a", { class: "primary button-link", href: retentionLink(), text: "Take the retention quiz now →" }),
+  const body = [];
+  if (passed) {
+    body.push(el("p", { class: "hero-title", text: "Retention quiz done" }),
+      el("p", { class: "hero-sub", text: "You scored " + result.score + " of " + RETENTION.length + ". Your certificate is ready below." }));
+  } else if (isOpen) {
+    body.push(
+      el("p", { class: "hero-title", text: "Your retention quiz is open" }),
+      el("p", { class: "hero-sub", text: "8 quick questions · about 5 minutes · score 6 or more to earn your certificate" }),
+      state.demo ? el("p", { class: "hero-note", text: "Demo mode: it opens straight away so you can try the whole journey." }) : null,
+      el("a", { class: "primary button-link hero-cta", href: retentionLink(), text: "Take the retention quiz now →" }),
     );
   } else {
-    parts.push(
-      el("p", { text: "A short retention quiz checks what you still remember. It has eight new questions and takes about five minutes." }),
-      el("p", {}, [el("strong", { text: "It opens in " + days + " days, on " + formatDate(opens) + "." }), " We will email you the link. It works on any device."]),
-      el("p", { class: "muted", text: "You can also save the link now and open it on any device:" }),
+    const left = Math.max(1, Math.ceil((opens.getTime() - Date.now()) / 864e5));
+    const choices = el("div", { class: "day-picker", role: "radiogroup", "aria-label": "Pick the day you will take the quiz" });
+    [0, 1, 2].forEach((n) => {
+      const d = new Date(opens.getTime() + n * 864e5);
+      const b = el("button", {
+        type: "button", class: "day-chip", role: "radio",
+        "aria-checked": String(d.toDateString() === plan.toDateString()),
+      }, [
+        el("span", { class: "chip-weekday", text: d.toLocaleDateString(undefined, { weekday: "short" }) }),
+        el("span", { class: "chip-date", text: d.toLocaleDateString(undefined, { day: "numeric", month: "short" }) }),
+      ]);
+      b.addEventListener("click", () => {
+        plan = d;
+        state.retentionPlan = d.toISOString();
+        save();
+        choices.querySelectorAll(".day-chip").forEach((c) => c.setAttribute("aria-checked", String(c === b)));
+        showPlan();
+      });
+      choices.appendChild(b);
+    });
+    body.push(
+      el("p", { class: "hero-title", text: "Your retention quiz opens in " + left + (left === 1 ? " day" : " days") }),
+      el("p", { class: "hero-sub", text: "8 quick questions · about 5 minutes · score 6 or more to earn your certificate" }),
+      el("p", { class: "hero-label", text: "Pick the day you will take it:" }),
+      choices,
+      el("div", { class: "row left" }, [cal, copy]),
+      el("p", { class: "hero-note", text: "We will also email you the link on " + formatDate(opens) + ". It works on any device." }),
     );
   }
-  parts.push(link, el("div", { class: "row left" }, [copy, cal]));
 
-  // Certificate section
-  const passed = result && result.passed;
+  const hero = el("section", { class: "retention-hero" + (isOpen && !passed ? " is-open" : "") + (passed ? " is-done" : ""), "aria-label": "Retention quiz" }, [
+    tile,
+    el("div", { class: "hero-body" }, body.filter(Boolean)),
+  ]);
+  showPlan();
+  if (isOpen || passed) {
+    const day = passed ? new Date(result.at) : new Date();
+    tileMonth.textContent = day.toLocaleDateString(undefined, { month: "short" });
+    tileDay.textContent = day.getDate();
+    tileWeekday.textContent = passed ? "Done" : "Today";
+  }
+
+  // Where they are in the journey: lessons, retention quiz, certificate.
+  const step = (label, status) => el("li", { class: "journey-step " + status }, [
+    el("span", { class: "journey-dot", text: status === "done" ? "✓" : "" }), el("span", { text: label }),
+  ]);
+  const journey = el("ol", { class: "journey", "aria-label": "Your progress" }, [
+    step("Lessons and final quiz", "done"),
+    step("Retention quiz", passed ? "done" : "now"),
+    step("Certificate", passed ? "now" : "locked"),
+  ]);
+
   const cert = passed
-    ? el("a", { class: "primary button-link", href: retentionLink(), text: "Download certificate" })
-    : el("button", { class: "primary", disabled: true, title: "Complete the retention quiz to unlock", text: "Download certificate" });
+    ? el("a", { class: "primary button-link", href: retentionLink(), text: "Get your certificate" })
+    : el("button", { class: "primary", disabled: true, title: "Complete the retention quiz to unlock", text: "Get your certificate" });
 
-  parts.push(
+  app.replaceChildren(
+    el("h1", { text: passed ? "Well done" : "One last step" }),
+    journey,
+    hero,
+    el("details", { class: "link-details" }, [
+      el("summary", { text: "Your personal quiz link" }),
+      el("p", { class: "muted", text: "Save it to open the quiz on any device." }),
+      link,
+    ]),
     el("h2", { class: "notice-title", text: "Your certificate" }),
     el("p", { class: "muted", text: passed
-      ? "You scored " + result.score + " of " + RETENTION.length + " on the retention quiz."
-      : "Complete the retention quiz and score 6 or more to earn your certificate." }),
+      ? "Your certificate is unlocked."
+      : "It unlocks when you score 6 or more on the retention quiz." }),
     cert,
   );
-
-  app.replaceChildren(...parts);
 }
 
 // Shown after "Leave for now", and whenever someone reopens the page mid-session.

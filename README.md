@@ -9,6 +9,15 @@ A short self-paced module on the confusion matrix, precision, recall and the acc
 4. Final quiz: 4 questions, one per goal. Then a results page with feedback by arm, and a next-steps page with the retention link, copy and calendar buttons, and the certificate button (greyed out until the retention quiz is passed).
 5. Retention quiz five days later: 8 new questions, opened from a personal link on any device. A score of 6 or more earns a certificate the learner can print or save as PDF. Below 6, the learner sees which questions were wrong (not the answers) and can try again. The first attempt is the study score (`answers`, `score`, `passed`); retakes only update `attempts`, `best_score` and `ever_passed`.
 
+## Slides and design
+- Each slide has a concept (`concept` in `content.js`). It sets the coloured tag above the title and the colours in its visual. Precision is always teal, recall always orange, accuracy always slate.
+- Slide text is written as a short `intro`, bullet `points`, an optional worked `formula`, and `terms`: plain-language definitions shown under the slide (from `TERMS`).
+- The top bar has a Light / Dark / Auto switch. The choice is kept in the learner's browser.
+- After the final quiz, the end page shows a large retention quiz banner. Learners pick the day they will take it (opening day or the two after), and the calendar event follows. The reminder email still goes out on opening day.
+
+## Deploying changes
+`index.html` loads every file with a version number (`styles.css?v=3`, `app.js?v=3`, ...). Raise the number whenever you change a CSS or JS file, so returning learners never get a mix of old and new files from their browser cache.
+
 ## Items
 25 items, each used in one place only, so no learner sees a question twice.
 
