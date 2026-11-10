@@ -466,6 +466,8 @@ dialog h2 { margin-top: 0; font-size: 22px; }
 .cert-name { font: 600 34px/1.2 Georgia, "Times New Roman", serif; margin: 8px auto 10px; padding-bottom: 8px; max-width: 80%; border-bottom: 1px solid var(--line); }
 .cert-course { font: 600 22px/1.3 Georgia, "Times New Roman", serif; color: var(--accent); margin: 6px 0 0; }
 .cert-seal { display: block; width: 64px; height: 64px; margin: 22px auto 10px; color: var(--accent); }
+.cert-course-pre { display: block; font-size: .7em; font-weight: 600; letter-spacing: .01em; opacity: .85; }
+.print-hint { margin-top: var(--space-2); }
 .cert-foot { font-size: 13px; color: var(--muted); margin: 0; letter-spacing: .04em; }
 
 /* Printing shows only the certificate, on one landscape page. Everything else is
